@@ -56,7 +56,7 @@ ma.add_handoff_relations(from_agent= music_agent,to_agents=[general_agent])
 
 
 # Multi-Agent handoff 的能力展示
-ma.handoff(messages=[{"role": "user", "content": "why the sky is blue"}],agent=a1)
+ma.handoff(messages=[{"role": "user", "content": "why the sky is blue"}],agent=general_agent)
 
 
 
@@ -169,7 +169,7 @@ ma.chat(messages=[{"role": "user", "content": "what is the weather in Hangzhou?"
 
 运行
 ```python
-ma.handoff(messages=[{"role": "user", "content": "why the sky is blue"}],agent=a1)
+ma.handoff(messages=[{"role": "user", "content": "why the sky is blue"}],agent=general_agent)
 ```
 输出
 ```python
@@ -178,7 +178,7 @@ ma.handoff(messages=[{"role": "user", "content": "why the sky is blue"}],agent=a
 
 运行
 ```python
-ma.handoff(messages=[{"role": "user", "content": "why the sky is blue and recommend me some music"}],agent=a1)
+ma.handoff(messages=[{"role": "user", "content": "why the sky is blue and recommend me some music"}],agent=general_agent)
 ```
 输出
 ```python

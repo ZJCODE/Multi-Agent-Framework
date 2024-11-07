@@ -60,7 +60,7 @@ ma.add_handoff_relations(from_agent=music_agent,to_agents=[general_agent])
 
 
 # Multi-Agent handoff example
-ma.handoff(messages=[{"role": "user", "content": "why the sky is blue"}],agent=a1)
+ma.handoff(messages=[{"role": "user", "content": "why the sky is blue"}],agent=general_agent)
 
 
 
@@ -175,7 +175,7 @@ Output
 
 Run
 ```python
-ma.handoff(messages=[{"role": "user", "content": "why the sky is blue"}],agent=a1)
+ma.handoff(messages=[{"role": "user", "content": "why the sky is blue"}],agent=general_agent)
 ```
 Output
 ```python
@@ -184,7 +184,7 @@ Output
 
 Run
 ```python
-ma.handoff(messages=[{"role": "user", "content": "why the sky is blue and recommend me some music"}],agent=a1)
+ma.handoff(messages=[{"role": "user", "content": "why the sky is blue and recommend me some music"}],agent=general_agent)
 ```
 Output
 ```python
