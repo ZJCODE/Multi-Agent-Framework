@@ -20,7 +20,7 @@ OPENAI_BASE_URL=xxx
 
 ## 使用案例
 
-具体可在 [Multi Agent Framework](Multi-Agent-Framework.ipynb) 中体验
+具体可在 [Multi Agent Framework](MultiAgent.ipynb) 中体验
 
 ```python
 # 初始化几个Agent
