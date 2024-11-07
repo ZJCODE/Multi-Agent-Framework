@@ -56,13 +56,26 @@ ma.add_handoff_relations(from_agent=music_agent,to_agents=[general_agent])
 # ma.add_handoff_relations(from_agent=music_agent,to_agents=[general_agent,science_agent])
 
 
-# Multi-Agent handoff ability display
+# Multi-Agent handoff example
 ma.handoff(messages=[{"role": "user", "content": "why the sky is blue"}],agent=a1)
 
-# Multi-Agent dialogue ability display
+# Multi-Agent dialogue example
 ma.chat(messages=[{"role": "user", "content": "why the sky is blue"}])
 
 ma.chat(messages=[{"role": "user", "content": "who are you"}],agent=music_agent)
+
+# Tools use example
+
+def get_weather(city:str)->str:
+    """ 
+    Get the weather for a specified city.
+    """
+    return f"The weather in {city} is sunny."
+
+general_agent.add_tools([get_weather])
+
+ma.chat(messages=[{"role": "user", "content": "what is the weather in Hangzhou?"}])
+
 
 ```
 
@@ -127,6 +140,24 @@ Output
   'content': 'I am Albert, your assistant for science-related questions. How can I help you today?',
   'agent_name': 'science_agent'}]
 ```
+
+Run
+```python
+ma.chat(messages=[{"role": "user", "content": "who are you"}],agent=science_agent)
+```
+Output
+```bash
+[{'role': 'handoff',
+  'handoff_id': 'call_nkyZqFm5aYhpVQWZyh86HZ2p',
+  'handoff': 'science_agent -> general_agent',
+  'agent_name': 'general_agent',
+  'agent': <__main__.Agent at 0x11528e1d0>},
+ {'role': 'tool',
+  'tool_call_id': 'call_S2bI2NjoMnkcI9836E77JqDW',
+  'content': 'The weather in Hangzhou is sunny.'}]
+```
+
+
 
 #### Handoff Example
 
