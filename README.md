@@ -61,6 +61,8 @@ ma.handoff(messages=[{"role": "user", "content": "why the sky is blue"}],agent=a
 # Multi-Agent dialogue ability display
 ma.chat(messages=[{"role": "user", "content": "why the sky is blue"}])
 
+ma.chat(messages=[{"role": "user", "content": "who are you"}],agent=music_agent)
+
 ```
 
 
@@ -112,6 +114,17 @@ Output
  {'role': 'assistant',
   'content': 'Music styles encompass a vast array of genres and subgenres. Here are some of the main categories:\n\n1. **Classical**: Includes orchestral, chamber music, opera, and choral works, with notable periods such as Baroque, Classical, Romantic, and Contemporary.\n\n2. **Jazz**: Characterized by improvisation and swing, with styles like bebop, smooth jazz, and free jazz.\n\n3. **Rock**: Evolved from rock and roll, encompassing various subgenres like classic rock, punk rock, indie rock, and alternative rock.\n\n4. **Pop**: Popular music aimed at a wide audience, often characterized by catchy melodies and hooks.\n\n5. **Hip-Hop**: Focuses on rhythm and beats, incorporating rapping, DJing, and sampling; includes subgenres like trap and boom bap.\n\n6. **R&B (Rhythm and Blues)**: Combines elements of soul, funk, and pop; often emphasizes vocal performances.\n\n7. **Country**: Originated in the Southern United States; includes subgenres like country pop, bluegrass, and Americana.\n\n8. **Electronic**: Encompasses a range of styles produced using electronic instruments; includes techno, house, trance, and dubstep.\n\n9. **Reggae**: Originating in Jamaica, characterized by offbeat rhythms and socially conscious lyrics.\n\n10. **Blues**: Rooted in African American history, featuring expressive guitar work and a melancholic themes.\n\n11. **Folk**: Traditional music that reflects cultural stories and values, with regional variations.\n\n12. **Metal**: Features heavy guitar riffs and strong rhythms; includes subgenres like heavy metal, thrash metal, and black metal.\n\nThese styles often blend into one another, leading to numerous hybrid genres. Music is constantly evolving, and new styles continue to emerge as artists experiment and innovate.',
   'agent_name': 'music_agent'}]
+```
+
+Run
+```python
+ma.chat(messages=[{"role": "user", "content": "who are you"}],agent=science_agent)
+```
+Output
+```bash
+[{'role': 'assistant',
+  'content': 'I am Albert, your assistant for science-related questions. How can I help you today?',
+  'agent_name': 'science_agent'}]
 ```
 
 #### Handoff Example

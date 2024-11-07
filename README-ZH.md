@@ -111,6 +111,17 @@ ma.chat(messages=[{"role": "user", "content": "What are the different music styl
   'agent_name': 'music_agent'}]
 ```
 
+运行
+```python
+ma.chat(messages=[{"role": "user", "content": "who are you"}],agent=science_agent)
+```
+输出
+```bash
+[{'role': 'assistant',
+  'content': 'I am Albert, your assistant for science-related questions. How can I help you today?',
+  'agent_name': 'science_agent'}]
+```
+
 #### Handoff Example
 
 运行
