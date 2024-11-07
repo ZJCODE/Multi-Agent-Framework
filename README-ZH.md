@@ -123,6 +123,23 @@ ma.chat(messages=[{"role": "user", "content": "who are you"}],agent=science_agen
   'agent_name': 'science_agent'}]
 ```
 
+运行
+```python
+ma.chat(messages=[{"role": "user", "content": "who are you"}],agent=science_agent)
+```
+输出
+```bash
+[{'role': 'handoff',
+  'handoff_id': 'call_nkyZqFm5aYhpVQWZyh86HZ2p',
+  'handoff': 'science_agent -> general_agent',
+  'agent_name': 'general_agent',
+  'agent': <__main__.Agent at 0x11528e1d0>},
+ {'role': 'tool',
+  'tool_call_id': 'call_S2bI2NjoMnkcI9836E77JqDW',
+  'content': 'The weather in Hangzhou is sunny.'}]
+```
+
+
 #### Handoff Example
 
 运行

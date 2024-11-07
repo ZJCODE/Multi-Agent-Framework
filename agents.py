@@ -13,7 +13,7 @@ class BaseAgent:
     def __init__(self,client:OpenAI):
         self.client = client
         # can add more attributes and methods here
-
+        
 
 class Agent:
     """
@@ -29,7 +29,9 @@ class Agent:
         self.agent = base_agent
         self.instructions = instructions
         self.handoff_agent_schemas: List[Dict] = []
+        self.tools_schema: List[Dict] = []
         self.handoff_agents: Dict[str, "Agent"] = {}
+        self.tools_map: Dict[str, "function"] = {}
 
     def __str__(self):
         """
@@ -55,6 +57,29 @@ class Agent:
             self.handoff_agent_schemas.append(agent_schema)
             self.handoff_agents[agent.name] = agent
 
+    def clear_handoffs(self) -> None:
+        """ 
+        Clears handoff agents from the current agent.
+        """
+        self.handoff_agent_schemas.clear()
+        self.handoff_agents = {}
+
+    def add_tools(self, tools: list) -> None:
+        """ 
+        Adds tools to the current agent.
+        """
+        self.tools_schema.clear()
+        for tool in tools:
+            tool_schema = function_to_schema(tool)
+            self.tools_schema.append(tool_schema)
+            self.tools_map[tool.__name__] = tool
+
+    def clear_tools(self) -> None:
+        """
+        Clears tools from the current agent.
+        """
+        self.tools_schema.clear()
+
     @retry(wait=wait_random_exponential(multiplier=1, max=40), stop=stop_after_attempt(3))
     def chat(self,messages:List[Dict],model: Optional[str] = None,disable_tools:bool = False):
         """ 
@@ -71,7 +96,7 @@ class Agent:
             response = self.agent.client.chat.completions.create(
                 model=model,
                 messages=messages,
-                tools=None if disable_tools else self.handoff_agent_schemas or None,
+                tools=None if disable_tools else self.handoff_agent_schemas + self.tools_schema or None,
                 tool_choice=None,
             )
             message = response.choices[0].message
@@ -81,15 +106,29 @@ class Agent:
             
             result = []
             for tool_call in message.tool_calls:
-                call_agent = self.handoff_agents[tool_call.function.name]
-                call_message = {
-                    "role": "tool",
-                    "tool_call_id": tool_call.id,
-                    "handoff": f"{self.name} -> {call_agent.name}",
-                    "agent_name": call_agent.name,
-                    "agent": call_agent,
-                }
-                result.append(call_message)      
+                if tool_call.function.name in self.handoff_agents:
+                    handoff_agent = self.handoff_agents[tool_call.function.name]
+                    handoff_message = {
+                        "role": "handoff",
+                        "handoff_id": tool_call.id,
+                        "handoff": f"{self.name} -> {handoff_agent.name}",
+                        "agent_name": handoff_agent.name,
+                        "agent": handoff_agent,
+                    }
+                    result.append(handoff_message)
+                elif tool_call.function.name in self.tools_map:
+                    tool = self.tools_map[tool_call.function.name]
+                    tool_args = json.loads(tool_call.function.arguments)
+                    tool_result = tool(**tool_args)
+                    tool_message = {
+                        "role": "tool",
+                        "tool_call_id": tool_call.id,
+                        "content": tool_result,
+                    }
+                    result.append(tool_message)
+                    print(f"Tool call: {tool_call.function.name} with args: {tool_args} returned: {tool_result}")
+                else:
+                    logging.error(f"Unknown tool call: {tool_call.function.name}")
             return result
         except Exception as e:
             logging.error("Unable to generate ChatCompletion response")
@@ -123,16 +162,21 @@ class MultiAgent:
         
         try:
             # currently only one handoff is supported
-            res = [self.current_agent.chat(messages, model)[0]]
+            res = self.current_agent.chat(messages, model)
+            if res:
+                res = [res[0]]
+
+            # Check if initial response has content
             if res and res[0].get("content"):
                 return res
-            while res and res[-1].get("tool_call_id") and max_handoof_depth > 0:
+        
+             # Handle handoff
+            while res and res[-1].get("handoff") and max_handoof_depth > 0:
                 max_handoof_depth -= 1
                 self.current_agent = res[-1]["agent"]
-                if max_handoof_depth == 0:
-                    res.extend(self.current_agent.chat(messages, model, disable_tools=True))
-                else:
-                    res.extend(self.current_agent.chat(messages, model))
+                disable_tools = max_handoof_depth == 0
+                res.extend(self.current_agent.chat(messages, model, disable_tools=disable_tools))
+
             return res
         except Exception as e:
             logging.error("Error during chat with agent.")
@@ -154,7 +198,7 @@ class MultiAgent:
             handoff_agents = {}
             if res:
                 for r in res:
-                    if r.get("tool_call_id"):
+                    if r.get("handoff_id"):
                         handoff_agents[r["agent_name"]] = r["agent"]
             if handoff_agents:
                 return handoff_agents
