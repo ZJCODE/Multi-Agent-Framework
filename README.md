@@ -31,15 +31,24 @@ from agents import BaseAgent,Agent,MultiAgent
 client = OpenAI()
 
 # 初始化几个Agent
-a1 = Agent(BaseAgent(client),"general agent","Agent used for daily questions named Ada.")
-a2 = Agent(BaseAgent(client),"science agent","Agent used for science questions named Albert.")
-a3 = Agent(BaseAgent(client),"music agent","Agent used for music questions named Mozart.")
+a1 = Agent(base_agent = BaseAgent(client),
+           name = "general agent",
+           instructions= "Agent used for daily questions named Ada.")
+a2 = Agent(base_agent = BaseAgent(client),
+           name = "science agent",
+           instructions = "Agent used for science questions named Albert.")
+a3 = Agent(base_agent = BaseAgent(client),
+           name = "music agent",
+           instructions = "Agent used for music questions named Mozart.")
 
 # 创建Multi-Agent环境 & 增加handoff的关系
-ma = MultiAgent(a1)
-ma.add_handoff_relations(a1,[a2,a3])
-ma.add_handoff_relations(a2,[a1])
-ma.add_handoff_relations(a3,[a1])
+ma = MultiAgent(start_agent=a1)
+ma.add_handoff_relations(from_agent=a1,to_agents=[a2,a3])
+ma.add_handoff_relations(from_agent=a2,to_agents=[a1])
+ma.add_handoff_relations(from_agent=a3,to_agents=[a1])
+# ma.add_handoff_relations(from_agent=a2,to_agents=[a1,a3])
+# ma.add_handoff_relations(from_agent=a3,to_agents=[a1,a2])
+
 
 # Multi-Agent handoff 的能力展示
 ma.handoff(messages=[{"role": "user", "content": "why the sky is blue"}],agent=a1)
