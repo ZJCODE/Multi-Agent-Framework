@@ -34,23 +34,25 @@ from agents import BaseAgent,Agent,MultiAgent
 client = OpenAI()
 
 # Initialize several agents
-a1 = Agent(base_agent = BaseAgent(client),
+general_agent = Agent(base_agent = BaseAgent(client),
            name = "general agent",
            instructions= "Agent used for daily questions named Ada.")
-a2 = Agent(base_agent = BaseAgent(client),
+
+science_agent = Agent(base_agent = BaseAgent(client),
            name = "science agent",
            instructions = "Agent used for science questions named Albert.")
-a3 = Agent(base_agent = BaseAgent(client),
+
+music_agent = Agent(base_agent = BaseAgent(client),
            name = "music agent",
            instructions = "Agent used for music questions named Mozart.")
 
 # Build a Multi-Agent environment & add handoff relationships
-ma = MultiAgent(start_agent=a1)
-ma.add_handoff_relations(from_agent=a1,to_agents=[a2,a3])
-ma.add_handoff_relations(from_agent=a2,to_agents=[a1])
-ma.add_handoff_relations(from_agent=a3,to_agents=[a1])
-# ma.add_handoff_relations(from_agent=a2,to_agents=[a1,a3])
-# ma.add_handoff_relations(from_agent=a3,to_agents=[a1,a2])
+ma = MultiAgent(start_agent=general_agent)
+ma.add_handoff_relations(from_agent=general_agent,to_agents=[science_agent,music_agent])
+ma.add_handoff_relations(from_agent=science_agent,to_agents=[general_agent])
+ma.add_handoff_relations(from_agent=music_agent,to_agents=[general_agent])
+# ma.add_handoff_relations(from_agent=science_agent,to_agents=[general_agent,music_agent])
+# ma.add_handoff_relations(from_agent=music_agent,to_agents=[general_agent,science_agent])
 
 
 # Multi-Agent handoff ability display
