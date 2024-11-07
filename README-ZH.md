@@ -44,6 +44,8 @@ music_agent = Agent(base_agent = BaseAgent(client),
            name = "music agent",
            instructions = "Agent used for music questions named Mozart.")
 
+
+
 # 创建Multi-Agent环境 & 增加handoff的关系
 ma = MultiAgent(start_agent=general_agent)
 ma.add_handoff_relations(from_agent= general_agent,to_agents=[science_agent,music_agent])
@@ -56,11 +58,14 @@ ma.add_handoff_relations(from_agent= music_agent,to_agents=[general_agent])
 # Multi-Agent handoff 的能力展示
 ma.handoff(messages=[{"role": "user", "content": "why the sky is blue"}],agent=a1)
 
+
+
 # Multi-Agent 对话能力展示 
 ma.chat(messages=[{"role": "user", "content": "why the sky is blue"}])
+ma.chat(messages=[{"role": "user", "content": "who are you"}],agent=music_agent)
+
 
 # Multi-Agent 工具使用展示
-
 def get_weather(city:str)->str:
     """ 
     Get the weather for a specified city.
