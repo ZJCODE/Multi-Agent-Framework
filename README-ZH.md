@@ -59,6 +59,20 @@ ma.handoff(messages=[{"role": "user", "content": "why the sky is blue"}],agent=a
 # Multi-Agent 对话能力展示 
 ma.chat(messages=[{"role": "user", "content": "why the sky is blue"}])
 
+# Multi-Agent 工具使用展示
+
+def get_weather(city:str)->str:
+    """ 
+    Get the weather for a specified city.
+    """
+    return f"The weather in {city} is sunny."
+
+general_agent.add_tools([get_weather])
+
+ma.chat(messages=[{"role": "user", "content": "what is the weather in Hangzhou?"}])
+
+
+
 ```
 
 

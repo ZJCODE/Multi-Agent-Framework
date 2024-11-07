@@ -64,7 +64,7 @@ ma.chat(messages=[{"role": "user", "content": "why the sky is blue"}])
 
 ma.chat(messages=[{"role": "user", "content": "who are you"}],agent=music_agent)
 
-# Tools use example
+# Multi-Agent tools use example
 
 def get_weather(city:str)->str:
     """ 
