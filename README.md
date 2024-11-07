@@ -9,6 +9,7 @@ Multi Agent Framework is a multi-agent dialogue framework based on the OpenAI AP
 ## Pre-requirements
 
 ```bash
+pip install -r requirements.txt
 cp .env_example .env
 ```
 

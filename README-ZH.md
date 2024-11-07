@@ -7,6 +7,7 @@ Multi-Agent-Framework 是一个基于OpenAI API的多Agent对话框枧架，可�
 ## 基础准备
 
 ```bash
+pip install -r requirements.txt
 cp .env_example .env
 ```
 
