@@ -138,8 +138,20 @@ Output
   'agent_name': 'science_agent'}]
 ```
 
+
+### Tools Example
+
 Run
 ```python
+
+def get_weather(city:str)->str:
+    """ 
+    Get the weather for a specified city.
+    """
+    return f"The weather in {city} is sunny."
+
+general_agent.add_tools([get_weather])
+
 ma.chat(messages=[{"role": "user", "content": "what is the weather in Hangzhou?"}])
 ```
 Output
@@ -151,6 +163,7 @@ Output
  {'role': 'tool',
   'content': 'The weather in Hangzhou is sunny.'}]
 ```
+
 
 
 
