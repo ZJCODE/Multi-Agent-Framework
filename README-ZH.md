@@ -1,18 +1,16 @@
 # Multi Agent Framework
 
-中文版本 : [README-ZH](README-ZH.md)
+### 简介
 
-### Introduction
+Multi-Agent-Framework 是一个基于OpenAI API的多Agent对话框枧架，可以实现多个Agent之间的对话协作，实现更加复杂的对话场景。
 
-Multi Agent Framework is a multi-agent dialogue framework based on the OpenAI API, which can realize the dialogue cooperation between multiple agents and realize more complex dialogue scenarios.
-
-## Pre-requirements
+## 基础准备
 
 ```bash
 cp .env_example .env
 ```
 
-write your own KEY and URL(optional)
+填写个人的KEY和URL(可选)
 
 ```
 OPENAI_API_KEY=xxx
@@ -20,10 +18,9 @@ OPENAI_BASE_URL=xxx
 ```
 
 
-## Usage
+## 使用案例
 
-
-You can experience it in [Multi Agent Framework](MultiAgent.ipynb)
+具体可在 [Multi Agent Framework](MultiAgent.ipynb) 中体验
 
 ```python
 
@@ -33,7 +30,7 @@ from agents import BaseAgent,Agent,MultiAgent
 
 client = OpenAI()
 
-# Initialize several agents
+# 初始化几个Agent
 a1 = Agent(base_agent = BaseAgent(client),
            name = "general agent",
            instructions= "Agent used for daily questions named Ada.")
@@ -44,7 +41,7 @@ a3 = Agent(base_agent = BaseAgent(client),
            name = "music agent",
            instructions = "Agent used for music questions named Mozart.")
 
-# Build a Multi-Agent environment & add handoff relationships
+# 创建Multi-Agent环境 & 增加handoff的关系
 ma = MultiAgent(start_agent=a1)
 ma.add_handoff_relations(from_agent=a1,to_agents=[a2,a3])
 ma.add_handoff_relations(from_agent=a2,to_agents=[a1])
@@ -53,10 +50,10 @@ ma.add_handoff_relations(from_agent=a3,to_agents=[a1])
 # ma.add_handoff_relations(from_agent=a3,to_agents=[a1,a2])
 
 
-# Multi-Agent handoff ability display
+# Multi-Agent handoff 的能力展示
 ma.handoff(messages=[{"role": "user", "content": "why the sky is blue"}],agent=a1)
 
-# Multi-Agent dialogue ability display
+# Multi-Agent 对话能力展示 
 ma.chat(messages=[{"role": "user", "content": "why the sky is blue"}])
 
 ```
@@ -65,11 +62,11 @@ ma.chat(messages=[{"role": "user", "content": "why the sky is blue"}])
 ### Chat Example
 
 
-Run
+运行
 ```python
 ma.chat(messages=[{"role": "user", "content": "why the sky is blue"}])
 ```
-Output
+输出
 ```bash
 [{'role': 'tool',
   'tool_call_id': 'call_HkAsxvDfwXVrF0ILi4IwAzto',
@@ -80,22 +77,22 @@ Output
   'content': "The sky appears blue due to a phenomenon called Rayleigh scattering. When sunlight enters Earth's atmosphere, it collides with molecules and small particles in the air. Sunlight is made up of many colors, each with different wavelengths. Blue light has a shorter wavelength and is scattered more than other colors when it strikes these particles.\n\nDuring the day, when the sun is high in the sky, more of the blue light is scattered in all directions, making the sky appear blue to our eyes. At sunrise and sunset, the sun is lower on the horizon, and the light has to pass through a greater thickness of the atmosphere. As a result, the blue and green wavelengths are scattered out of our line of sight, and the longer wavelengths like orange and red become more visible, leading to the beautiful colors we see at those times.",
   'agent_name': 'science_agent'}]
 ```
-Run
+运行
 ```python
 ma.chat(messages=[{"role": "user", "content": "who are you"}])
 ```
-Output
+输出
 ```bash
 [{'role': 'assistant',
   'content': 'I am Albert, your virtual assistant for science questions. How can I assist you today?',
   'agent_name': 'science_agent'}]
 ```
 
-Run
+运行
 ```python
 ma.chat(messages=[{"role": "user", "content": "What are the different music styles?"}])
 ```
-Output
+输出
 ```bash
 [{'role': 'tool',
   'tool_call_id': 'call_85wgYW1rLlcOIVp3xuCIDVwJ',
@@ -114,20 +111,20 @@ Output
 
 #### Handoff Example
 
-Run
+运行
 ```python
 ma.handoff(messages=[{"role": "user", "content": "why the sky is blue"}],agent=a1)
 ```
-Output
+输出
 ```python
 {'science_agent': <__main__.Agent at 0x116f643d0>}
 ```
 
-Run
+运行
 ```python
 ma.handoff(messages=[{"role": "user", "content": "why the sky is blue and recommend me some music"}],agent=a1)
 ```
-Output
+输出
 ```python
 {'science_agent': <__main__.Agent at 0x116f643d0>,
  'music_agent': <__main__.Agent at 0x116f641d0>}
