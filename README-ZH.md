@@ -90,7 +90,7 @@ ma.chat(messages=[{"role": "user", "content": "why the sky is blue"}])
 ```
 输出
 ```bash
-[{'role': 'tool',
+[{'role': 'handoff',
   'handoff': 'general_agent -> science_agent',
   'agent_name': 'science_agent',
   'agent': <__main__.Agent at 0x116f643d0>},
@@ -115,11 +115,11 @@ ma.chat(messages=[{"role": "user", "content": "What are the different music styl
 ```
 输出
 ```bash
-[{'role': 'tool',
+[{'role': 'handoff',
   'handoff': 'science_agent -> general_agent',
   'agent_name': 'general_agent',
   'agent': <__main__.Agent at 0x116f64410>},
- {'role': 'tool',
+ {'role': 'handoff',
   'handoff': 'general_agent -> music_agent',
   'agent_name': 'music_agent',
   'agent': <__main__.Agent at 0x116f641d0>},
