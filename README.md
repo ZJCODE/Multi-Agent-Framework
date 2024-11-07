@@ -23,6 +23,13 @@ OPENAI_BASE_URL=xxx
 具体可在 [Multi Agent Framework](MultiAgent.ipynb) 中体验
 
 ```python
+
+from openai import OpenAI
+
+from agents import BaseAgent,Agent,MultiAgent
+
+client = OpenAI()
+
 # 初始化几个Agent
 a1 = Agent(BaseAgent(client),"general agent","Agent used for daily questions named Ada.")
 a2 = Agent(BaseAgent(client),"science agent","Agent used for science questions named Albert.")
