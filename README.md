@@ -90,7 +90,6 @@ ma.chat(messages=[{"role": "user", "content": "why the sky is blue"}])
 Output
 ```bash
 [{'role': 'tool',
-  'tool_call_id': 'call_HkAsxvDfwXVrF0ILi4IwAzto',
   'handoff': 'general_agent -> science_agent',
   'agent_name': 'science_agent',
   'agent': <__main__.Agent at 0x116f643d0>},
@@ -116,12 +115,10 @@ ma.chat(messages=[{"role": "user", "content": "What are the different music styl
 Output
 ```bash
 [{'role': 'tool',
-  'tool_call_id': 'call_85wgYW1rLlcOIVp3xuCIDVwJ',
   'handoff': 'science_agent -> general_agent',
   'agent_name': 'general_agent',
   'agent': <__main__.Agent at 0x116f64410>},
  {'role': 'tool',
-  'tool_call_id': 'call_PaE5unINalPQ5akhNAH9mDxo',
   'handoff': 'general_agent -> music_agent',
   'agent_name': 'music_agent',
   'agent': <__main__.Agent at 0x116f641d0>},
@@ -148,12 +145,10 @@ ma.chat(messages=[{"role": "user", "content": "what is the weather in Hangzhou?"
 Output
 ```bash
 [{'role': 'handoff',
-  'handoff_id': 'call_nkyZqFm5aYhpVQWZyh86HZ2p',
   'handoff': 'science_agent -> general_agent',
   'agent_name': 'general_agent',
   'agent': <__main__.Agent at 0x11528e1d0>},
  {'role': 'tool',
-  'tool_call_id': 'call_S2bI2NjoMnkcI9836E77JqDW',
   'content': 'The weather in Hangzhou is sunny.'}]
 ```
 
