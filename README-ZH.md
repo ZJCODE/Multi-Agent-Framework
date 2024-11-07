@@ -125,7 +125,7 @@ ma.chat(messages=[{"role": "user", "content": "who are you"}],agent=science_agen
 
 运行
 ```python
-ma.chat(messages=[{"role": "user", "content": "who are you"}],agent=science_agent)
+ma.chat(messages=[{"role": "user", "content": "what is the weather in Hangzhou?"}])
 ```
 输出
 ```bash

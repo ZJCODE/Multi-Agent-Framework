@@ -143,7 +143,7 @@ Output
 
 Run
 ```python
-ma.chat(messages=[{"role": "user", "content": "who are you"}],agent=science_agent)
+ma.chat(messages=[{"role": "user", "content": "what is the weather in Hangzhou?"}])
 ```
 Output
 ```bash
