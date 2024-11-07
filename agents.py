@@ -13,7 +13,7 @@ class BaseAgent:
     def __init__(self,client:OpenAI):
         self.client = client
         # can add more attributes and methods here
-        
+
 
 class Agent:
     """
@@ -21,12 +21,12 @@ class Agent:
     """
     def __init__(
             self,
-            agent:BaseAgent,
+            base_agent:BaseAgent,
             name:str,
             instructions: Optional[str] = None):
         self.DEFAULT_MODEL = "gpt-4o-mini"
         self.name = name.replace(" ","_")
-        self.agent = agent
+        self.agent = base_agent
         self.instructions = instructions
         self.handoff_agent_schemas: List[Dict] = []
         self.handoff_agents: Dict[str, "Agent"] = {}
