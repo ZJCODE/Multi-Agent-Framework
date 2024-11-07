@@ -110,7 +110,6 @@ class Agent:
                     handoff_agent = self.handoff_agents[tool_call.function.name]
                     handoff_message = {
                         "role": "handoff",
-                        "handoff_id": tool_call.id,
                         "handoff": f"{self.name} -> {handoff_agent.name}",
                         "agent_name": handoff_agent.name,
                         "agent": handoff_agent,
@@ -122,7 +121,6 @@ class Agent:
                     tool_result = tool(**tool_args)
                     tool_message = {
                         "role": "tool",
-                        "tool_call_id": tool_call.id,
                         "content": tool_result,
                     }
                     result.append(tool_message)
@@ -198,7 +196,7 @@ class MultiAgent:
             handoff_agents = {}
             if res:
                 for r in res:
-                    if r.get("handoff_id"):
+                    if r.get("handoff"):
                         handoff_agents[r["agent_name"]] = r["agent"]
             if handoff_agents:
                 return handoff_agents
