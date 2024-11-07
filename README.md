@@ -51,7 +51,7 @@ ma.chat(messages=[{"role": "user", "content": "why the sky is blue"}])
 ma.chat(messages=[{"role": "user", "content": "why the sky is blue"}])
 ```
 输出
-```json
+```bash
 [{'role': 'tool',
   'tool_call_id': 'call_HkAsxvDfwXVrF0ILi4IwAzto',
   'handoff': 'general_agent -> science_agent',
@@ -66,7 +66,7 @@ ma.chat(messages=[{"role": "user", "content": "why the sky is blue"}])
 ma.chat(messages=[{"role": "user", "content": "who are you"}])
 ```
 输出
-```json
+```bash
 [{'role': 'assistant',
   'content': 'I am Albert, your virtual assistant for science questions. How can I assist you today?',
   'agent_name': 'science_agent'}]
@@ -77,7 +77,7 @@ ma.chat(messages=[{"role": "user", "content": "who are you"}])
 ma.chat(messages=[{"role": "user", "content": "What are the different music styles?"}])
 ```
 输出
-```json
+```bash
 [{'role': 'tool',
   'tool_call_id': 'call_85wgYW1rLlcOIVp3xuCIDVwJ',
   'handoff': 'science_agent -> general_agent',
@@ -100,6 +100,16 @@ ma.chat(messages=[{"role": "user", "content": "What are the different music styl
 ma.handoff(messages=[{"role": "user", "content": "why the sky is blue"}],agent=a1)
 ```
 输出
-```json
+```python
 {'science_agent': <__main__.Agent at 0x116f643d0>}
+```
+
+运行
+```python
+ma.handoff(messages=[{"role": "user", "content": "why the sky is blue and recommend me some music"}],agent=a1)
+```
+输出
+```python
+{'science_agent': <__main__.Agent at 0x116f643d0>,
+ 'music_agent': <__main__.Agent at 0x116f641d0>}
 ```
