@@ -24,7 +24,7 @@ OPENAI_BASE_URL=xxx
 ## Usage
 
 
-You can experience it in [Multi Agent Framework Demo](notebooks/demo.ipynb)
+You can experience it in [Multi Agent Framework Demo](notebook/demo.ipynb)
 
 ```python
 
