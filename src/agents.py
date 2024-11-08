@@ -5,6 +5,7 @@ from tenacity import retry, wait_random_exponential, stop_after_attempt
 from typing import List, Optional, Dict
 import logging
 from utils import function_to_schema
+import json
 
 
 class BaseAgent:
