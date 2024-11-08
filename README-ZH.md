@@ -21,7 +21,7 @@ OPENAI_BASE_URL=xxx
 
 ## 使用案例
 
-具体可在 [Multi Agent Framework](notebooks/demo.ipynb) 中体验
+具体可在 [Multi Agent Framework Demo](notebooks/demo.ipynb) 中体验
 
 ```python
 
