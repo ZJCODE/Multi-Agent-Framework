@@ -34,25 +34,37 @@ client = OpenAI()
 # 初始化几个Agent
 general_agent = Agent(base_agent = BaseAgent(client),
            name = "general agent",
-           instructions= "Agent used for daily questions named Ada.")
+           instructions= "Determine which agent is best suited to handle the user's request, and transfer the conversation to that agent.",
+           handoff_description = "Call this agent if a user is asking about a topic that is not handled by the activated agent.")
 
 science_agent = Agent(base_agent = BaseAgent(client),
            name = "science agent",
-           instructions = "Agent used for science questions named Albert.")
+           instructions = "Agent used for science questions named Albert.",
+           handoff_description = "Call this agent if a user is asking about a science topic.")
 
 music_agent = Agent(base_agent = BaseAgent(client),
            name = "music agent",
-           instructions = "Agent used for music questions named Mozart.")
+           instructions = "Agent used for music questions named Mozart.",
+           handoff_description = "Call this agent if a user is asking about a music topic.")
+
+daily_agent = Agent(base_agent = BaseAgent(client),
+           name = "daily agent",
+           instructions = "Agent used for daily questions named Ada.",
+           handoff_description = "Call this agent if a user is asking about a daily topic.")
+
 
 
 
 # 创建Multi-Agent环境 & 增加handoff的关系
 ma = MultiAgent(start_agent=general_agent)
-ma.add_handoff_relations(from_agent= general_agent,to_agents=[science_agent,music_agent])
-ma.add_handoff_relations(from_agent= science_agent,to_agents=[general_agent])
-ma.add_handoff_relations(from_agent= music_agent,to_agents=[general_agent])
-# ma.add_handoff_relations(from_agent=science_agent,to_agents=[general_agent,music_agent])
-# ma.add_handoff_relations(from_agent=music_agent,to_agents=[general_agent,science_agent])
+ma.add_handoff_relations(from_agent=general_agent,to_agents=[science_agent,music_agent,daily_agent])
+ma.add_handoff_relations(from_agent=science_agent,to_agents=[general_agent])
+ma.add_handoff_relations(from_agent=music_agent,to_agents=[general_agent])
+ma.add_handoff_relations(from_agent=daily_agent,to_agents=[general_agent])
+# ma.add_handoff_relations(from_agent=science_agent,to_agents=[general_agent,music_agent,daily_agent])
+# ma.add_handoff_relations(from_agent=music_agent,to_agents=[general_agent,science_agent,daily_agent])
+# ma.add_handoff_relations(from_agent=daily_agent,to_agents=[general_agent,science_agent,music_agent])
+
 
 
 # Multi-Agent handoff 的能力展示
@@ -63,6 +75,7 @@ ma.handoff(messages=[{"role": "user", "content": "why the sky is blue"}],agent=g
 # Multi-Agent 对话能力展示 
 ma.chat(messages=[{"role": "user", "content": "why the sky is blue"}])
 ma.chat(messages=[{"role": "user", "content": "who are you"}],agent=music_agent)
+ma.chat(messages=[{"role": "user", "content": "why the sky is blue and recommend me some music"}],agent=general_agent)
 
 
 # Multi-Agent 工具使用展示
@@ -72,10 +85,18 @@ def get_weather(city:str)->str:
     """
     return f"The weather in {city} is sunny."
 
-general_agent.add_tools([get_weather])
+
+def get_news()->str:
+    """ 
+    Get the latest news.
+    """
+    return "The latest news is that the sun is shining."
+
+
+daily_agent.add_tools([get_weather,get_news])
 
 ma.chat(messages=[{"role": "user", "content": "what is the weather in Hangzhou?"}])
-
+ma.chat(messages=[{"role": "user", "content": "what is the weather in Hangzhou and what happened today?"}])
 
 
 ```
@@ -93,9 +114,10 @@ ma.chat(messages=[{"role": "user", "content": "why the sky is blue"}])
 [{'role': 'handoff',
   'handoff': 'general_agent -> science_agent',
   'agent_name': 'science_agent',
-  'agent': <__main__.Agent at 0x116f643d0>},
+  'agent': <__main__.Agent at 0x1143e20d0>,
+  'message': 'why the sky is blue'},
  {'role': 'assistant',
-  'content': "The sky appears blue due to a phenomenon called Rayleigh scattering. When sunlight enters Earth's atmosphere, it collides with molecules and small particles in the air. Sunlight is made up of many colors, each with different wavelengths. Blue light has a shorter wavelength and is scattered more than other colors when it strikes these particles.\n\nDuring the day, when the sun is high in the sky, more of the blue light is scattered in all directions, making the sky appear blue to our eyes. At sunrise and sunset, the sun is lower on the horizon, and the light has to pass through a greater thickness of the atmosphere. As a result, the blue and green wavelengths are scattered out of our line of sight, and the longer wavelengths like orange and red become more visible, leading to the beautiful colors we see at those times.",
+  'content': "The sky appears blue due to a phenomenon called Rayleigh scattering. Here's how it works:\n\n1. **Sunlight Composition**: Sunlight, or white light, is made up of multiple colors, each with different wavelengths. Blue light has a shorter wavelength, while red light has a longer wavelength.\n\n2. **Atmospheric Interaction**: When sunlight enters the Earth's atmosphere, it interacts with air molecules and small particles. Because blue light is shorter in wavelength, it is scattered in all directions more than other colors when it strikes these molecules.\n\n3. **Observer's Perspective**: As we look up at the sky, we see this scattered blue light coming from all directions, which makes the sky appear blue.\n\n4. **Variations**: During sunrise and sunset, the sky can appear red or orange because the sunlight has to travel through more of the Earth's atmosphere. This causes more scattering of the shorter wavelengths, allowing the longer wavelengths like red and orange to become more prominent.\n\nIn summary, the blue color of the sky is primarily due to the scattering of sunlight by the gases and particles in the atmosphere.",
   'agent_name': 'science_agent'}]
 ```
 运行
@@ -105,26 +127,28 @@ ma.chat(messages=[{"role": "user", "content": "who are you"}])
 输出
 ```bash
 [{'role': 'assistant',
-  'content': 'I am Albert, your virtual assistant for science questions. How can I assist you today?',
+  'content': 'I am Albert, your assistant for science-related questions. How can I help you today?',
   'agent_name': 'science_agent'}]
 ```
 
 运行
 ```python
-ma.chat(messages=[{"role": "user", "content": "What are the different music styles?"}])
+ma.chat(messages=[{"role": "user", "content": "recommend me some music"}])
 ```
 输出
 ```bash
 [{'role': 'handoff',
   'handoff': 'science_agent -> general_agent',
   'agent_name': 'general_agent',
-  'agent': <__main__.Agent at 0x116f64410>},
+  'agent': <__main__.Agent at 0x114343c10>,
+  'message': 'recommend me some music'},
  {'role': 'handoff',
   'handoff': 'general_agent -> music_agent',
   'agent_name': 'music_agent',
-  'agent': <__main__.Agent at 0x116f641d0>},
+  'agent': <__main__.Agent at 0x11437d350>,
+  'message': 'recommend me some music'},
  {'role': 'assistant',
-  'content': 'Music styles encompass a vast array of genres and subgenres. Here are some of the main categories:\n\n1. **Classical**: Includes orchestral, chamber music, opera, and choral works, with notable periods such as Baroque, Classical, Romantic, and Contemporary.\n\n2. **Jazz**: Characterized by improvisation and swing, with styles like bebop, smooth jazz, and free jazz.\n\n3. **Rock**: Evolved from rock and roll, encompassing various subgenres like classic rock, punk rock, indie rock, and alternative rock.\n\n4. **Pop**: Popular music aimed at a wide audience, often characterized by catchy melodies and hooks.\n\n5. **Hip-Hop**: Focuses on rhythm and beats, incorporating rapping, DJing, and sampling; includes subgenres like trap and boom bap.\n\n6. **R&B (Rhythm and Blues)**: Combines elements of soul, funk, and pop; often emphasizes vocal performances.\n\n7. **Country**: Originated in the Southern United States; includes subgenres like country pop, bluegrass, and Americana.\n\n8. **Electronic**: Encompasses a range of styles produced using electronic instruments; includes techno, house, trance, and dubstep.\n\n9. **Reggae**: Originating in Jamaica, characterized by offbeat rhythms and socially conscious lyrics.\n\n10. **Blues**: Rooted in African American history, featuring expressive guitar work and a melancholic themes.\n\n11. **Folk**: Traditional music that reflects cultural stories and values, with regional variations.\n\n12. **Metal**: Features heavy guitar riffs and strong rhythms; includes subgenres like heavy metal, thrash metal, and black metal.\n\nThese styles often blend into one another, leading to numerous hybrid genres. Music is constantly evolving, and new styles continue to emerge as artists experiment and innovate.',
+  'content': 'Sure! Here are some recommendations across various genres:\n\n**Classical:**\n- **Ludwig van Beethoven** – Symphony No. 9 in D minor, Op. 125 (“Choral”)\n- **Johann Sebastian Bach** – Brandenburg Concerto No. 3\n- **Wolfgang Amadeus Mozart** – Symphony No. 40 in G minor, K. 550\n\n**Jazz:**\n- **Miles Davis** – Kind of Blue\n- **John Coltrane** – A Love Supreme\n- **Ella Fitzgerald & Louis Armstrong** – Ella and Louis\n\n**Rock:**\n- **The Beatles** – Abbey Road\n- **Led Zeppelin** – IV\n- **Fleetwood Mac** – Rumours\n\n**Pop:**\n- **Dua Lipa** – Future Nostalgia\n- **Taylor Swift** – 1989\n- **Billie Eilish** – When We All Fall Asleep, Where Do We Go?\n\n**Indie/Alternative:**\n- **Tame Impala** – Currents\n- **Arctic Monkeys** – AM\n- **Phoebe Bridgers** – Punisher\n\n**Hip-Hop:**\n- **Kendrick Lamar** – To Pimp a Butterfly\n- **J. Cole** – 2014 Forest Hills Drive\n- **OutKast** – Speakerboxxx/The Love Below\n\n**Electronic:**\n- **Daft Punk** – Discovery\n- **ODESZA** – A Moment Apart\n- **Flume** – Flume\n\nIf there’s a specific genre or mood you’re in the mood for, let me know and I can tailor the recommendations further!',
   'agent_name': 'music_agent'}]
 ```
 
@@ -139,7 +163,33 @@ ma.chat(messages=[{"role": "user", "content": "who are you"}],agent=science_agen
   'agent_name': 'science_agent'}]
 ```
 
-### 工具示例
+运行
+```python
+ma.chat(messages=[{"role": "user", "content": "why the sky is blue and recommend me some music"}],agent=general_agent)
+```
+输出
+```bash
+[{'role': 'handoff',
+  'handoff': 'general_agent -> science_agent',
+  'agent_name': 'science_agent',
+  'agent': <__main__.Agent at 0x114341390>,
+  'message': 'Why is the sky blue?'},
+ {'role': 'handoff',
+  'handoff': 'general_agent -> music_agent',
+  'agent_name': 'music_agent',
+  'agent': <__main__.Agent at 0x11437d350>,
+  'message': 'Can you recommend me some music?'},
+ {'role': 'assistant',
+  'content': "The sky appears blue primarily due to a phenomenon called Rayleigh scattering. Sunlight, or white light, is made up of many colors, each with different wavelengths. When sunlight enters Earth's atmosphere, it interacts with gas molecules and small particles.\n\nShorter wavelengths of light (blue and violet) are scattered more than longer wavelengths (red and yellow). Although violet light is scattered even more than blue, our eyes are more sensitive to blue light and some of the violet is absorbed by the ozone layer. As a result, we perceive the sky as blue during the day.\n\nDuring sunrise and sunset, the light from the sun has to pass through a thicker layer of the atmosphere. The shorter blue wavelengths are scattered out of our line of sight, while the longer wavelengths (reds and oranges) dominate, giving the sky those colors during those times.",
+  'agent_name': 'science_agent'},
+ {'role': 'assistant',
+  'content': 'Of course! What kind of music are you in the mood for? Here are a few suggestions from different genres:\n\n1. **Classical**: Try Beethoven\'s Symphony No. 5 for its dramatic intensity, or Debussy\'s "Clair de Lune" for something more serene.\n\n2. **Jazz**: Listen to Miles Davis\'s "So What" for a classic modal jazz experience, or Ella Fitzgerald and Louis Armstrong\'s duets for some timeless vocal jazz.\n\n3. **Rock**: Check out Led Zeppelin\'s "Stairway to Heaven" for a classic rock anthem, or The Beatles\' "Come Together" for something iconic.\n\n4. **Pop**: Explore Dua Lipa\'s "Don’t Start Now" for a modern dance-pop hit, or Taylor Swift\'s "Blank Space" for catchy storytelling.\n\n5. **Indie**: Give Bon Iver\'s "Holocene" a play for a beautiful, introspective sound, or Tame Impala\'s "The Less I Know the Better" for a groovy vibe.\n\n6. **World Music**: Try listening to Tinariwen, a Tuareg band, for some incredible desert blues, or Carlos Vives for a taste of Colombian vallenato.\n\nLet me know if you’re looking for something specific!',
+  'agent_name': 'music_agent'}]
+```
+
+
+
+### Tools Example
 
 运行
 ```python
@@ -150,22 +200,42 @@ def get_weather(city:str)->str:
     """
     return f"The weather in {city} is sunny."
 
-general_agent.add_tools([get_weather])
+
+def get_news()->str:
+    """ 
+    Get the latest news.
+    """
+    return "The latest news is that the sun is shining."
+
+
+daily_agent.add_tools([get_weather,get_news])
+
 
 ma.chat(messages=[{"role": "user", "content": "what is the weather in Hangzhou?"}])
 ```
 输出
 ```bash
 [{'role': 'handoff',
-  'handoff': 'science_agent -> general_agent',
-  'agent_name': 'general_agent',
-  'agent': <__main__.Agent at 0x11528e1d0>},
- {'role': 'tool',
-  'content': 'The weather in Hangzhou is sunny.'}]
+  'handoff': 'general_agent -> daily_agent',
+  'agent_name': 'daily_agent',
+  'agent': <__main__.Agent at 0x1143e0850>,
+  'message': 'what is the weather in Hangzhou?'},
+ {'role': 'tool', 'content': 'The weather in Hangzhou is sunny.'}]
+```
+
+运行
+```python
+ma.chat(messages=[{"role": "user", "content": "what is the weather in Hangzhou and what happened today?"}])
+```
+输出
+```bash
+[{'role': 'tool', 'content': 'The weather in Hangzhou is sunny.'},
+ {'role': 'tool', 'content': 'The latest news is that the sun is shining.'}]
 ```
 
 
-#### 交接示例
+
+#### Handoff Example
 
 运行
 ```python
