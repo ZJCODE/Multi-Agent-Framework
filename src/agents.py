@@ -6,6 +6,7 @@ from typing import List, Optional, Dict
 import logging
 from utils import function_to_schema
 import json
+import copy
 
 
 class BaseAgent:
@@ -123,7 +124,7 @@ class Agent:
                         )
             message = response.choices[0].message
             if not message.tool_calls:
-                result = [{"role": "assistant", "content": message.content, "agent_name": self.name}]
+                result = [{"role": "assistant", "content": message.content, "sender": self.name}]
                 return result
             
             result = []
@@ -133,34 +134,77 @@ class Agent:
                     handoff_agent = self.handoff_agents[tool_call.function.name]
                     if handoff_agents_num > 1:
                         message = json.loads(tool_call.function.arguments).get("message")
+                        arguments = tool_call.function.arguments
                     else:
                         message = messages[-1].get("content")
+                        arguments = json.dumps({"message": message})
+                    tool_call_message = {
+                        "role": "assistant",
+                        "tool_calls": [
+                            {"id": tool_call.id, 
+                             "function": {"arguments": arguments, "name": tool_call.function.name},
+                             "type": "function"
+                             }
+                        ],
+                        "type": "handoff",
+                        "sender": self.name,
+                    }
                     handoff_message = {
-                        "role": "handoff",
+                        "role": "tool",
                         "handoff": f"{self.name} -> {handoff_agent.name}",
-                        "agent_name": handoff_agent.name,
+                        "content":f"Handing off to {handoff_agent.name}",
+                        "tool_call_id": tool_call.id,
                         "agent": handoff_agent,
                         "message": message,
+                        "type": "handoff",
+                        "sender": handoff_agent.name,
                     }
+                    result.append(tool_call_message)
                     result.append(handoff_message)
                 elif tool_call.function.name in self.tools_map:
                     tool = self.tools_map[tool_call.function.name]
                     tool_args = json.loads(tool_call.function.arguments)
                     tool_result = tool(**tool_args)
+
+                    tool_call_message = {
+                        "role": "assistant",
+                        "tool_calls": [
+                            {"id": tool_call.id, 
+                             "function": {"arguments": tool_call.function.arguments, "name": tool_call.function.name},
+                             "type": "function"
+                             }
+                        ],
+                        "type": "tool",
+                        "sender": self.name,
+                    }
                     tool_message = {
                         "role": "tool",
                         "content": tool_result,
+                        "tool_call_id": tool_call.id,
+                        "type": "tool",
+                        "sender": self.name,
                     }
+                    result.append(tool_call_message)
                     result.append(tool_message)
+                    # result.append(self.chat( [tool_call_message] + [tool_message], model, disable_tools=True, disable_handoffs=True)[0])
                     logging.info(f"Tool call: {tool_call.function.name} with args: {tool_args} returned: {tool_result}")
                 else:
                     logging.error(f"Unknown tool call: {tool_call.function.name}")
+
+            tool_message_for_summary = [r for r in result if ('tool_calls' in r or 'tool_call_id' in r) and r['type'] == 'tool']
+            if len(tool_message_for_summary) > 0:
+                temp_messages = copy.deepcopy(messages) + tool_message_for_summary
+                temp_result = self.chat(temp_messages, model, disable_tools=True, disable_handoffs=True)
+                result.extend(temp_result)
+
             return result
         except Exception as e:
             logging.error("Unable to generate ChatCompletion response")
             logging.error(f"Exception: {e}")
             return None
 
+    def do_task():
+        pass
 
 class MultiAgent:
     def __init__(self,start_agent:Optional[Agent] = None):
@@ -181,7 +225,8 @@ class MultiAgent:
              agent:Optional[Agent] = None,
              max_handoof_depth:int = 2,
              disable_tools:bool = False,
-             disable_handoffs:bool = False
+             disable_handoffs:bool = False,
+             show_details:bool = False
              )->List[Dict]:
         """
         Chat with the current agent or a specified agent using the provided messages and model.
@@ -200,26 +245,34 @@ class MultiAgent:
             if not res:
                 return res
 
-            if len(res) == 1:
-                # Check if initial response has content
-                if res[0].get("content"):
-                    return res
+            if len(res) == 1 and res[0].get("content"):
+                return res
+            elif len(res) == 2: # just a handoff
                 # Handle handoff
                 while res[-1].get("handoff") and max_handoof_depth > 0:
                     max_handoof_depth -= 1
                     self.current_agent = res[-1]["agent"]
                     disable_handoffs = max_handoof_depth == 0
                     res.extend(self.current_agent.chat(messages, model, disable_handoffs=disable_handoffs))
-
-                return res
-            else:
+            else: # more than one handoff
                 for r in res:
                     if r.get("handoff"):
                         temp_agent = r["agent"]
-                        temp_messages = messages.copy()
+                        temp_messages = copy.deepcopy(messages)
                         temp_messages[-1]["content"] = r["message"]
                         res.extend(temp_agent.chat(temp_messages, model, disable_handoffs=True))
+            
+            for r in res:
+                if 'agent' in r:
+                    r.pop('agent')
+
+            if show_details:
                 return res
+            else:
+                return [r for r in res if 'tool_call_id' not in r and 'tool_calls' not in r]
+
+
+            
         except Exception as e:
             logging.error("Error during chat with agent.")
             logging.error(f"Exception: {e}")
@@ -244,7 +297,7 @@ class MultiAgent:
             if res:
                 for r in res:
                     if r.get("handoff"):
-                        handoff_agents[r["agent_name"]] = r["agent"]
+                        handoff_agents[r["sender"]] = r["agent"]
             if handoff_agents:
                 return handoff_agents
             return None
