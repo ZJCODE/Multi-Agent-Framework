@@ -123,21 +123,30 @@ class Agent:
                             tool_choice=None,
                         )
             message = response.choices[0].message
+
+            # If there are no tool calls, return the message [Most Common Case]
             if not message.tool_calls:
                 result = [{"role": "assistant", "content": message.content, "sender": self.name}]
                 return result
             
+            # If there are tool calls, handle them
             result = []
             handoff_agents_num = sum([1 for tool_call in message.tool_calls if tool_call.function.name in self.handoff_agents])
+
             for tool_call in message.tool_calls:
+
+                # If the tool call is a handoff, handle it
                 if tool_call.function.name in self.handoff_agents:
                     handoff_agent = self.handoff_agents[tool_call.function.name]
+                    # if there are multiple handoff agents, pass the extracted message to the next agent
                     if handoff_agents_num > 1:
                         message = json.loads(tool_call.function.arguments).get("message")
                         arguments = tool_call.function.arguments
+                    # if there is only one handoff agent, pass the last message to the next agent
                     else:
                         message = messages[-1].get("content")
                         arguments = json.dumps({"message": message})
+                    # tool_call_message and handoff_message are necessary for the strcuture of the messages send to the model
                     tool_call_message = {
                         "role": "assistant",
                         "tool_calls": [
@@ -161,11 +170,13 @@ class Agent:
                     }
                     result.append(tool_call_message)
                     result.append(handoff_message)
+
+                # If the tool call is a tool, handle it
                 elif tool_call.function.name in self.tools_map:
                     tool = self.tools_map[tool_call.function.name]
                     tool_args = json.loads(tool_call.function.arguments)
                     tool_result = tool(**tool_args)
-
+                    # tool_call_message and tool_message are necessary for the strcuture of the messages send to the model
                     tool_call_message = {
                         "role": "assistant",
                         "tool_calls": [
@@ -186,11 +197,11 @@ class Agent:
                     }
                     result.append(tool_call_message)
                     result.append(tool_message)
-                    # result.append(self.chat( [tool_call_message] + [tool_message], model, disable_tools=True, disable_handoffs=True)[0])
                     logging.info(f"Tool call: {tool_call.function.name} with args: {tool_args} returned: {tool_result}")
                 else:
                     logging.error(f"Unknown tool call: {tool_call.function.name}")
 
+            # If there are tool calls, generate a summary message based on the tool responses
             tool_message_for_summary = [r for r in result if ('tool_calls' in r or 'tool_call_id' in r) and r['type'] == 'tool']
             if len(tool_message_for_summary) > 0:
                 temp_messages = copy.deepcopy(messages) + tool_message_for_summary
@@ -245,29 +256,36 @@ class MultiAgent:
             if not res:
                 return res
 
+            # If there is only one response and it has content, return it
             if len(res) == 1 and res[0].get("content"):
                 return res
+            # If there are two responses it can be a handoff or a tool call
             elif len(res) == 2: # just a handoff
-                # Handle handoff
+                # if it is a handoff, do a recursive call to the next agent
                 while res[-1].get("handoff") and max_handoof_depth > 0:
                     max_handoof_depth -= 1
                     self.current_agent = res[-1]["agent"]
                     disable_handoffs = max_handoof_depth == 0
                     res.extend(self.current_agent.chat(messages, model, disable_handoffs=disable_handoffs))
-            else: # more than one handoff
+            # if there are more than two responses, it is multiple handoffs case ,do not do recursive handoff in this case
+            else: 
                 for r in res:
                     if r.get("handoff"):
+                        # do chat call with handoff disabled
                         temp_agent = r["agent"]
                         temp_messages = copy.deepcopy(messages)
                         temp_messages[-1]["content"] = r["message"]
                         res.extend(temp_agent.chat(temp_messages, model, disable_handoffs=True))
             
+            # remove agent instance from the response, which can not be serialized in message
             for r in res:
                 if 'agent' in r:
                     r.pop('agent')
 
+            # if show_details is True, return all the responses
             if show_details:
                 return res
+            # if show_details is False, return only the responses with content , not the tool calls
             else:
                 return [r for r in res if 'tool_call_id' not in r and 'tool_calls' not in r]
 
