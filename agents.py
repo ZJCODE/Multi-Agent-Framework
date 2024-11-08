@@ -94,7 +94,11 @@ class Agent:
         self.tools_schema.clear()
 
     @retry(wait=wait_random_exponential(multiplier=1, max=40), stop=stop_after_attempt(3))
-    def chat(self,messages:List[Dict],model: Optional[str] = None,disable_tools:bool = False,disable_handoffs:bool = False):
+    def chat(self,
+             messages:List[Dict],
+             model: Optional[str] = None,
+             disable_tools:bool = False,
+             disable_handoffs:bool = False):
         """ 
         Handles chat messages and returns responses, with optional handoff to other agents.
         """
@@ -220,7 +224,10 @@ class MultiAgent:
             logging.error(f"Exception: {e}")
             return None
         
-    def handoff(self,messages:List[Dict],model: Optional[str] = None,agent:Agent = None)-> Agent:
+    def handoff(self,
+                messages:List[Dict],
+                model: Optional[str] = None,
+                agent:Agent = None)-> Agent:
         """
         Perform a handoff to the specified agent using the provided messages and model.
         """
