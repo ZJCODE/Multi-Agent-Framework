@@ -73,6 +73,9 @@ ma.handoff(messages=[{"role": "user", "content": "why the sky is blue"}],agent=g
 
 
 # Multi-Agent 对话能力展示 
+# 会根据用户的消息内容自动选择agent
+ma.chat(messages=[{"role": "user", "content": "why the sky is blue"}])
+# 设置agent为music_agent可以强制对话由music_agent处理
 ma.chat(messages=[{"role": "user", "content": "why the sky is blue"}])
 ma.chat(messages=[{"role": "user", "content": "who are you"}],agent=music_agent)
 ma.chat(messages=[{"role": "user", "content": "why the sky is blue and recommend me some music"}],agent=general_agent)
@@ -86,11 +89,11 @@ def get_weather(city:str)->str:
     return f"The weather in {city} is sunny."
 
 
-def get_news()->str:
+def get_today_news()->str:
     """ 
-    Get the latest news.
+    Get today's news.
     """
-    return "The latest news is that the sun is shining."
+    return "ZJun created an Agent Framework."
 
 
 daily_agent.add_tools([get_weather,get_news])

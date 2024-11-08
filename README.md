@@ -74,8 +74,10 @@ ma.handoff(messages=[{"role": "user", "content": "why the sky is blue"}],agent=g
 
 
 # Multi-Agent dialogue example
+# agent will be automatically selected according to the content of the user's message
 ma.chat(messages=[{"role": "user", "content": "why the sky is blue"}])
-ma.chat(messages=[{"role": "user", "content": "who are you"}],agent=music_agent)
+# set agent to music_agent can force the conversation to be handled by music_agent
+ma.chat(messages=[{"role": "user", "content": "who are you"}],agent=music_agent) 
 ma.chat(messages=[{"role": "user", "content": "why the sky is blue and recommend me some music"}],agent=general_agent)
 
 
@@ -87,11 +89,11 @@ def get_weather(city:str)->str:
     return f"The weather in {city} is sunny."
 
 
-def get_news()->str:
+def get_today_news()->str:
     """ 
-    Get the latest news.
+    Get today's news.
     """
-    return "The latest news is that the sun is shining."
+    return "ZJun created an Agent Framework."
 
 
 daily_agent.add_tools([get_weather,get_news])
