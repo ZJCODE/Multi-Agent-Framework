@@ -239,7 +239,7 @@ class MultiAgent:
             return None
         
         try:
-            # currently only one handoff is supported
+            
             res = self.current_agent.chat(messages, model, disable_tools=disable_tools, disable_handoffs=disable_handoffs)
 
             if not res:
