@@ -107,3 +107,4 @@ ma.chat(messages=[{"role": "user", "content": "what is the weather in Hangzhou a
 ## 更多案例
 
 - [至上而下结构](notebook/structure_top_down.ipynb)
+- [自主构建新的Agent并交接](notebook/auto_create_agent.ipynb)
