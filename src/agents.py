@@ -46,6 +46,32 @@ class Agent:
         return f"Agent(name={self.name}, instructions={self.instructions},handoff_agents={list(self.handoff_agents.keys())})"
 
 
+
+    def add_handoff(self, agent: "Agent") -> None:
+        """
+        Adds a handoff agent to the current agent.
+        """
+        agent_schema = {
+                        "type": "function",
+                        "function": {
+                            "name": agent.name,
+                            "description": agent.instructions or "" + " \n" + agent.handoff_description or "",
+                            'parameters': {
+                                "type": "object",
+                                "properties": {
+                                    "message": {
+                                        "type": "string",
+                                        "description": "The message to send to the agent."
+                                        }
+                                },
+                                "required": ["message"]
+                            }
+                        }
+                        }
+        self.handoff_agent_schemas.append(agent_schema)
+        self.handoff_agents[agent.name] = agent
+
+
     def add_handoffs(self, agents: List["Agent"]) -> None:
         """ 
         Adds handoff agents to the current agent.
@@ -78,6 +104,15 @@ class Agent:
         """
         self.handoff_agent_schemas.clear()
         self.handoff_agents = {}
+
+
+    def add_tool(self, tool: "function") -> None:
+        """ 
+        Adds a tool to the current agent.
+        """
+        tool_schema = function_to_schema(tool)
+        self.tools_schema.append(tool_schema)
+        self.tools_map[tool.__name__] = tool
 
     def add_tools(self, tools: list) -> None:
         """ 
@@ -283,6 +318,11 @@ class MultiAgent:
                     r.pop('agent')
 
             # if show_details is True, return all the responses
+
+            if len(res) > 1 and res[-2]['role'] == 'tool' and res[-2]['content'] == '#CreateNewAgent#':
+                result = self.chat(messages, model,agent, max_handoof_depth, disable_tools, disable_handoffs, show_details)
+                res.extend(result)
+
             if show_details:
                 return res
             # if show_details is False, return only the responses with content , not the tool calls
