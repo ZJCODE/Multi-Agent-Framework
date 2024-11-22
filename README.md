@@ -108,3 +108,7 @@ ma.chat(messages=[{"role": "user", "content": "what is the weather in Hangzhou a
 
 - [Multi Agent Framework TopDown Demo](notebook/structure_top_down.ipynb)
 - [Auto Create New Agent And Handoff](notebook/auto_create_agent.ipynb)
+
+## Experiment Notebooks
+- [Stand-alone Multi-Agent Framework](experiment/standalone_multi_framework.ipynb)
+- [Stand-alone Multi-Agent Framework V2](experiment/standalone_multi_framework_v2.ipynb)
