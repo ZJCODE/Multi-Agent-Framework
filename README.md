@@ -112,3 +112,4 @@ ma.chat(messages=[{"role": "user", "content": "what is the weather in Hangzhou a
 ## Experiment Notebooks
 - [Stand-alone Multi-Agent Framework](experiment/standalone_multi_framework.ipynb)
 - [Stand-alone Multi-Agent Framework V2](experiment/standalone_multi_framework_v2.ipynb)
+- [Stand-alone Multi-Agent Framework V3 Async](experiment/standalone_multi_framework_v3.ipynb)
