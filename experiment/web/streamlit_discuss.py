@@ -48,6 +48,9 @@ if "init_discussion" not in st.session_state:
 if "more_participants" not in st.session_state:
     st.session_state.more_participants = []
 
+if "discuss_language" not in st.session_state:
+    st.session_state.discuss_language = "English"
+
 def skip_me():
     st.session_state.skip_me = True
 
@@ -90,6 +93,7 @@ with st.sidebar:
     st.session_state.base_url = st.text_input("Base URL")
     st.caption("Choose Your Model")
     st.session_state.model = st.selectbox("Model",["gpt-4o-mini","gpt-4o","gpt-4"],index=1)
+    st.session_state.discuss_language = st.selectbox("Language",["English","中文","日本語","한국어"],index=0)
 
     if st.session_state.api_key and not st.session_state.base_url:
         st.session_state.base_url = None
@@ -99,7 +103,7 @@ with st.sidebar:
         st.session_state.api_key = os.getenv("OPENAI_API_KEY")
 
     st.caption("Add more participants (, separated)")
-    participants = st.text_area("More Participants", value="").replace("，", ",").split(",")
+    participants = st.text_area(placeholder="Currently, only English is available, formatted as Designer,Engineer",label="More Participants", value="").replace("，", ",").split(",")
     st.session_state.more_participants = [] if participants == [''] else participants
 
 with col1:
@@ -140,7 +144,7 @@ with col1:
                 st.session_state.thread_id = Group._generate_thread_id()
                 st.session_state.participants = [AgentSchema(name=person,
                                             transfer_to_me_description=f"I am a {person}, call me if you have any questions related to {person}.",
-                                            agent=Agent(name=person,description=f"You are a {person},reply use daily language.",
+                                            agent=Agent(name=person,description=f"You are a {person},always reply in language {st.session_state.discuss_language}",
                                                         api_key=st.session_state.api_key,
                                                         base_url=st.session_state.base_url,
                                                         model=st.session_state.model
