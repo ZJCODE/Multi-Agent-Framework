@@ -86,6 +86,7 @@ with st.sidebar:
         st.session_state.base_url = os.getenv("OPENAI_BASE_URL")
         st.session_state.api_key = os.getenv("OPENAI_API_KEY")
 
+
 with col1:
     st.subheader("Topic")
     topic = st.text_input("Enter a topic")
@@ -106,9 +107,11 @@ with col1:
     c1,c2 = st.columns([1,1])
     with c1:
         if st.button("Start Discussion"):
-            if not topic:
+
+            if not st.session_state.api_key and not st.session_state.base_url:
+                st.toast("🚨 Please enter your API Key and Base URL in the sidebar")
+            elif not topic:
                 st.toast("🚨 Please enter a topic")
-                
             elif not chosen_people:
                 st.toast("🚨 Please choose who to discuss with")
             elif chosen_people == ["Moderator"]:
