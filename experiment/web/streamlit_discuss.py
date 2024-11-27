@@ -39,6 +39,9 @@ if "base_url" not in st.session_state:
 if "api_key" not in st.session_state:
     st.session_state.api_key = ""
 
+if "model" not in st.session_state:
+    st.session_state.model = "gpt-4o-mini"
+
 if "init_discussion" not in st.session_state:
     st.session_state.init_discussion = True
 
@@ -46,11 +49,15 @@ def skip_me():
     st.session_state.skip_me = True
 
 
-def build_message(messages_history, current_speaker,topic,participants=[]):
+def build_message(messages_history, current_speaker,topic,participants=[],max_message_length=20):
     # preview other people's messages
     # current speaker's previous messages
     other_people_messages = [message for message in messages_history if message["sender"] not in ["helper",current_speaker]]
     current_speaker_message = [message for message in messages_history if message["sender"] == current_speaker]
+
+    other_people_messages = other_people_messages[-max_message_length:]
+    current_speaker_message = current_speaker_message[-max_message_length:]
+    
     prompt = """
     # Discussion on Topic: {}\n
     \n### Participants\n
@@ -78,6 +85,8 @@ with st.sidebar:
     st.session_state.api_key = st.text_input("API Key",type="password")
     st.caption("Your Own API Base URL")
     st.session_state.base_url = st.text_input("Base URL")
+    st.caption("Choose Your Model")
+    st.session_state.model = st.selectbox("Model",["gpt-4o-mini","gpt-4o","gpt-4"],index=1)
 
     if st.session_state.api_key and not st.session_state.base_url:
         st.session_state.base_url = None
@@ -125,13 +134,15 @@ with col1:
                                             transfer_to_me_description=f"I am a {person}, call me if you have any questions related to {person}.",
                                             agent=Agent(name=person,description=f"You are a {person},reply use daily language.",
                                                         api_key=st.session_state.api_key,
-                                                        base_url=st.session_state.base_url
+                                                        base_url=st.session_state.base_url,
+                                                        model=st.session_state.model
                                                         ),
                                             as_entry=True if person == "Moderator" else False) 
                                             for person in chosen_people]
                 st.session_state.group = Group(participants=st.session_state.participants
                                                ,api_key=st.session_state.api_key
-                                               ,base_url=st.session_state.base_url)
+                                               ,base_url=st.session_state.base_url,
+                                                  model=st.session_state.model)
     with c2:
         if st.button("Clean Discussion"):
             st.toast("🎉 Discussion cleaned.")
