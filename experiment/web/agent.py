@@ -15,7 +15,7 @@ class Agent:
     simple demo
     """
     def __init__(self,name: str,description: str,
-                 base_url: str = None,api_key: str = None,
+                 api_key: str = None,base_url: str = None,
                  model: str = "gpt-4o-mini"):
         self.name = name
         self.description = description
@@ -68,7 +68,7 @@ class Group:
     def __init__(self, 
                  participants: list[AgentSchema], 
                  model_client: OpenAI = None,
-                 base_url: str = None,api_key: str = None,
+                 api_key: str = None,base_url: str = None,
                  model: str = "gpt-4o-mini"):
         """ 
         Initializes the group with the given participants and model client.

@@ -123,10 +123,15 @@ with col1:
                 st.session_state.thread_id = Group._generate_thread_id()
                 st.session_state.participants = [AgentSchema(name=person,
                                             transfer_to_me_description=f"I am a {person}, call me if you have any questions related to {person}.",
-                                            agent=Agent(name=person,description=f"You are a {person},reply use daily language."),
+                                            agent=Agent(name=person,description=f"You are a {person},reply use daily language.",
+                                                        api_key=st.session_state.api_key,
+                                                        base_url=st.session_state.base_url
+                                                        ),
                                             as_entry=True if person == "Moderator" else False) 
                                             for person in chosen_people]
-                st.session_state.group = Group(participants=st.session_state.participants)
+                st.session_state.group = Group(participants=st.session_state.participants
+                                               ,api_key=st.session_state.api_key
+                                               ,base_url=st.session_state.base_url)
     with c2:
         if st.button("Clean Discussion"):
             st.toast("🎉 Discussion cleaned.")
