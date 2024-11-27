@@ -3,8 +3,10 @@
 
 ## Overview
 
+##### Simple Demo 
 ![Multi-Agent Web Demo](../resources/demo_simple.png)
 
+##### Demo with human in the loop
 ![Multi-Agent Web Demo](../resources/demo_with_human.png)
 
 
