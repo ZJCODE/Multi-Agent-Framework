@@ -182,6 +182,8 @@ with col2:
                 st.session_state.init_discussion = False
 
     else:
+        if not st.session_state.api_key and not st.session_state.base_url:
+            st.warning("Please enter your API Key and Base URL in the sidebar.")
         if not topic:
             st.warning("Please enter a topic.")
         if not chosen_people:
