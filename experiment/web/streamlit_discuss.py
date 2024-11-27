@@ -45,6 +45,9 @@ if "model" not in st.session_state:
 if "init_discussion" not in st.session_state:
     st.session_state.init_discussion = True
 
+if "more_participants" not in st.session_state:
+    st.session_state.more_participants = []
+
 def skip_me():
     st.session_state.skip_me = True
 
@@ -95,13 +98,18 @@ with st.sidebar:
         st.session_state.base_url = os.getenv("OPENAI_BASE_URL")
         st.session_state.api_key = os.getenv("OPENAI_API_KEY")
 
+    st.caption("Add more participants (, separated)")
+    participants = st.text_area("More Participants", value="").replace("，", ",").split(",")
+    st.session_state.more_participants = [] if participants == [''] else participants
 
 with col1:
     st.subheader("Topic")
     topic = st.text_input("Enter a topic")
     st.subheader("Discuss Settings")
     chosen_people= st.multiselect(
-        'Choose who to discuss with (multiple options allowed)',['Moderator','Artist', 'Mathematician', 'Designer', 'Engineer', 
+        'Choose who to discuss with (multiple options allowed)',
+        options= st.session_state.more_participants +
+        ['Moderator','Artist', 'Mathematician', 'Designer', 'Engineer', 
                                       'Scientist','Writer','Philosopher','Historian',
                                       'Musician','Entrepreneur','Educator','Programmer',
                                       'Psychologist','Biologist','Chef','Athlete','Doctor',
