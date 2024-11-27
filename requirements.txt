@@ -2,3 +2,4 @@ python-dotenv
 openai
 tenacity
 graphviz
+streamlit
