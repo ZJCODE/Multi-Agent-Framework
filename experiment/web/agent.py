@@ -43,8 +43,7 @@ class Agent:
         response = await self.async_client.chat.completions.create(
                 model=self.model,
                 messages=[{"role": "system", "content": self.description}] + messages,
-                stream=stream,
-                max_tokens=300
+                stream=stream
             )
         
         if not stream:
