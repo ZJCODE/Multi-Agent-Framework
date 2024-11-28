@@ -355,7 +355,7 @@ with col2:
                                                 thread_id=st.session_state.thread_id)
                 language_map = {
                     "English": "Transfer to {}",
-                    "中文": "转接给{}",
+                    "中文": "转接给 {}",
                     "日本語": "{} に転送",
                     "한국어": "{} 로 전환"
                 }
@@ -383,7 +383,7 @@ with col2:
                     next_agent = st.session_state.group.entry_agent.name
                 language_map = {
                     "English": "Transfer to {}",
-                    "中文": "转接给{}",
+                    "中文": "转接给 {}",
                     "日本語": "{} に転送",
                     "한국어": "{} 로 전환"
                 }
