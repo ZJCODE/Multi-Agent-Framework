@@ -1,7 +1,5 @@
 # Multi Agent Framework
 
-中文版本 : [README-ZH](README-ZH.md)
-
 ## Introduction
 
 Multi Agent Framework is a multi-agent dialogue framework based on the OpenAI API, which can realize the dialogue cooperation between multiple agents and realize more complex dialogue scenarios.
@@ -113,3 +111,7 @@ ma.chat(messages=[{"role": "user", "content": "what is the weather in Hangzhou a
 - [Stand-alone Multi-Agent Framework](experiment/standalone_multi_framework.ipynb)
 - [Stand-alone Multi-Agent Framework V2](experiment/standalone_multi_framework_v2.ipynb)
 - [Stand-alone Multi-Agent Framework V3 Async](experiment/standalone_multi_framework_v3.ipynb)
+
+---
+
+中文版本 : [README-ZH](README-ZH.md)
