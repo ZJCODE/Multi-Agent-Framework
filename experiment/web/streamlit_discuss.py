@@ -162,18 +162,81 @@ with col1:
         "한국어": "참여자 선택(여러 옵션 허용)"
     }
     text = language_map.get(st.session_state.language, language_map["English"])
-    chosen_people= st.multiselect(label=text,
-        options= st.session_state.more_participants +
-        ['Moderator','Artist', 'Mathematician', 'Designer', 'Engineer', 
-                                      'Scientist','Writer','Philosopher','Historian',
-                                      'Musician','Entrepreneur','Educator','Programmer',
-                                      'Psychologist','Biologist','Chef','Athlete','Doctor',
-                                      'Nurse','Lawyer','Politician','Journalist','Police','Soldier',
-                                      'Firefighter','Farmer','Pilot','Driver','Singer','Dancer',
-                                      'Actor','Model','Photographer','Athlete','Coach','Trainer',
-                                      'Therapist','Counselor','Consultant','Advisor','Analyst',
-                                      'Technician','Specialist','Expert','Assistant','Secretary',
-                                      'Receptionist','Manager','Supervisor','Director','Leader','President'],default=["Moderator"])
+    participants_options_map = {
+        "English": st.session_state.more_participants + ["Moderator","Mathematician","Artist","Historian","Scientist","Writer","Poet","Musician","Philosopher","Sociologist","Psychologist","Educator","Linguist","Anthropologist","Political Scientist","Economist","Environmentalist","Designer","Engineer","Doctor","Nurse","Architect","Programmer","Data Analyst","Nutritionist","Psychotherapist","Pharmacist","Physical Therapist","Environmental Engineer","Urban Planner","Mechanical Engineer","Electrical Engineer","Executive","Technical Expert","Marketing Specialist","Financial Analyst","Human Resources Manager","Legal Advisor","Public Relations Specialist","Customer Representative","Supply Chain Management Specialist","Researcher","Policy Maker","Entrepreneur","Investor","Financial Advisor","Corporate Social Responsibility Specialist"],
+        "中文": st.session_state.more_participants + ["主持人","数学家","艺术家","历史学家","科学家","作家","诗人","音乐家","哲学家","社会学家","心理学家","教育家","语言学家","人类学家","政治学家","经济学家","环境学家","设计师","工程师","医生","护士","建筑师","程序员","数据分析师","营养师","心理治疗师","药剂师","物理治疗师","环境工程师","城市规划师","机械工程师","电气工程师","企业高管","技术专家","市场营销专家","财务分析师","人力资源经理","法律顾问","公共关系专家","客户代表","供应链管理专家","研究员","政策制定者","创业者","投资者","金融顾问","社会责任专家"],
+        "日本語": st.session_state.more_participants + ["モデレーター","数学者","アーティスト","歴史家","科学者","作家","詩人","音楽家","哲学者","社会学者","心理学者","教育者","言語学者","人類学者","政治学者","経済学者","環境保護活動家","デザイナー","エンジニア","医者","看護師","建築家","プログラマー","データアナリスト","栄養士","心理療法士","薬剤師","理学療法士","環境エンジニア","都市計画家","機械工学者","電気工学者","役員","技術専門家","マーケティングスペシャリスト","財務アナリスト","人事マネージャー","法律顧問","広報スペシャリスト","カスタマー代表","サプライチェーン管理スペシャリスト","研究者","政策立案者","起業家","投資家","ファイナンシャルアドバイザー","企業の社会的責任スペシャリスト"],
+        "한국어": st.session_state.more_participants + ["모더레이터","수학자","예술가","역사학자","과학자","작가","시인","음악가","철학자","사회학자","심리학자","교육자","언어학자","인류학자","정치학자","경제학자","환경운동가","디자이너","엔지니어","의사","간호사","건축가","프로그래머","데이터 분석가","영양사","심리치료사","약사","물리치료사","환경 엔지니어","도시 계획가","기계공학자","전기공학자","임원","기술 전문가","마케팅 전문가","재무 분석가","인사 관리자","법률 고문","홍보 전문가","고객 대표","공급망 관리 전문가","연구원","정책 입안자","기업가","투자자","재무 고문","기업의 사회적 책임 전문가"]
+    }
+
+    default_participant_map = {
+        "English": ["Moderator"],
+        "中文": ["主持人"],
+        "日本語": ["モデレーター"],
+        "한국어": ["모더레이터"]
+    }
+    participants_language_map = {
+        "Moderator":"Moderator","Mathematician":"Mathematician","Artist":"Artist","Historian":"Historian","Scientist":"Scientist","Writer":"Writer","Poet":"Poet","Musician":"Musician","Philosopher":"Philosopher","Sociologist":"Sociologist","Psychologist":"Psychologist","Educator":"Educator","Linguist":"Linguist","Anthropologist":"Anthropologist","Political Scientist":"Political Scientist","Economist":"Economist","Environmentalist":"Environmentalist","Designer":"Designer","Engineer":"Engineer","Doctor":"Doctor","Nurse":"Nurse","Architect":"Architect","Programmer":"Programmer","Data Analyst":"Data Analyst","Nutritionist":"Nutritionist","Psychotherapist":"Psychotherapist","Pharmacist":"Pharmacist","Physical Therapist":"Physical Therapist","Environmental Engineer":"Environmental Engineer","Urban Planner":"Urban Planner","Mechanical Engineer":"Mechanical Engineer","Electrical Engineer":"Electrical Engineer","Executive":"Executive","Technical Expert":"Technical Expert","Marketing Specialist":"Marketing Specialist","Financial Analyst":"Financial Analyst","Human Resources Manager":"Human Resources Manager","Legal Advisor":"Legal Advisor","Public Relations Specialist":"Public Relations Specialist","Customer Representative":"Customer Representative","Supply Chain Management Specialist":"Supply Chain Management Specialist","Researcher":"Researcher","Policy Maker":"Policy Maker","Entrepreneur":"Entrepreneur","Investor":"Investor","Financial Advisor":"Financial Advisor","Corporate Social Responsibility Specialist":"Corporate Social Responsibility Specialist",
+        "主持人":"Moderator","数学家":"Mathematician","艺术家":"Artist","历史学家":"Historian","科学家":"Scientist","作家":"Writer","诗人":"Poet","音乐家":"Musician","哲学家":"Philosopher","社会学家":"Sociologist","心理学家":"Psychologist","教育家":"Educator","语言学家":"Linguist","人类学家":"Anthropologist","政治学家":"Political Scientist","经济学家":"Economist","环境保护活动家":"Environmentalist","设计师":"Designer","工程师":"Engineer","医生":"Doctor","护士":"Nurse","建筑师":"Architect","程序员":"Programmer","数据分析师":"Data Analyst","营养师":"Nutritionist","心理治疗师":"Psychotherapist","药剂师":"Pharmacist","理学疗法师":"Physical Therapist","环境工程师":"Environmental Engineer","城市规划师":"Urban Planner","机械工程师":"Mechanical Engineer","电气工程师":"Electrical Engineer","执行":"Executive","技术专家":"Technical Expert","市场营销专家":"Marketing Specialist","财务分析师":"Financial Analyst","人力资源经理":"Human Resources Manager","法律顾问":"Legal Advisor","公共关系专家":"Public Relations Specialist","客户代表":"Customer Representative","供应链管理专家":"Supply Chain Management Specialist","研究员":"Researcher","政策制定者":"Policy Maker","创业者":"Entrepreneur","投资者":"Investor","金融顾问":"Financial Advisor","企业社会责任专家":"Corporate Social Responsibility Specialist",
+        "モデレーター":"Moderator","数学者":"Mathematician","アーティスト":"Artist","歴史家":"Historian","科学者":"Scientist","作家":"Writer","詩人":"Poet","音楽家":"Musician","哲学者":"Philosopher","社会学者":"Sociologist","心理学者":"Psychologist","教育者":"Educator","言語学者":"Linguist","人類学者":"Anthropologist","政治学者":"Political Scientist","経済学者":"Economist","環境保護活動家":"Environmentalist","デザイナー":"Designer","エンジニア":"Engineer","医者":"Doctor","看護師":"Nurse","建築家":"Architect","プログラマー":"Programmer","データアナリスト":"Data Analyst","栄養士":"Nutritionist","心理療法士":"Psychotherapist","薬剤師":"Pharmacist","理学療法士":"Physical Therapist","環境エンジニア":"Environmental Engineer","都市計画家":"Urban Planner","機械工学者":"Mechanical Engineer","電気工学者":"Electrical Engineer","役員":"Executive","技術専門家":"Technical Expert","マーケティングスペシャリスト":"Marketing Specialist","財務アナリスト":"Financial Analyst","人事マネージャー":"Human Resources Manager","法律顧問":"Legal Advisor","広報スペシャリスト":"Public Relations Specialist","カスタマー代表":"Customer Representative","サプライチェーン管理スペシャリスト":"Supply Chain Management Specialist","研究者":"Researcher","政策立案者":"Policy Maker","起業家":"Entrepreneur","投資家":"Investor","ファイナンシャルアドバイザー":"Financial Advisor","企業の社会的責任スペシャリスト":"Corporate Social Responsibility Specialist",
+        "모더레이터":"Moderator","수학자":"Mathematician","예술가":"Artist","역사학자":"Historian","과학자":"Scientist","작가":"Writer","시인":"Poet","음악가":"Musician","철학자":"Philosopher","사회학자":"Sociologist","심리학자":"Psychologist","교육자":"Educator","언어학자":"Linguist","인류학자":"Anthropologist","정치학자":"Political Scientist","경제학자":"Economist","환경운동가":"Environmentalist","디자이너":"Designer","엔지니어":"Engineer","의사":"Doctor","간호사":"Nurse","건축가":"Architect","프로그래머":"Programmer","데이터 분석가":"Data Analyst","영양사":"Nutritionist","심리치료사":"Psychotherapist","약사":"Pharmacist","물리치료사":"Physical Therapist","환경 엔지니어":"Environmental Engineer","도시 계획가":"Urban Planner","기계공학자":"Mechanical Engineer","전기공학자":"Electrical Engineer","임원":"Executive","기술 전문가":"Technical Expert","마케팅 전문가":"Marketing Specialist","재무 분석가":"Financial Analyst","인사 관리자":"Human Resources Manager","법률 고문":"Legal Advisor","홍보 전문가":"Public Relations Specialist","고객 대표":"Customer Representative","공급망 관리 전문가":"Supply Chain Management Specialist","연구원":"Researcher","정책 입안자":"Policy Maker","기업가":"Entrepreneur","투자자":"Investor","재무 고문":"Financial Advisor","기업의 사회적 책임 전문가":"Corporate Social Responsibility Specialist"}
+
+    participants_language_reverse_map = {
+        "Moderator":{"English":"Moderator","中文":"主持人","日本語":"モデレーター","한국어":"모더레이터"},
+        "Mathematician":{"English":"Mathematician","中文":"数学家","日本語":"数学者","한국어":"수학자"},
+        "Artist":{"English":"Artist","中文":"艺术家","日本語":"アーティスト","한국어":"예술가"},
+        "Historian":{"English":"Historian","中文":"历史学家","日本語":"歴史家","한국어":"역사학자"},
+        "Scientist":{"English":"Scientist","中文":"科学家","日本語":"科学者","한국어":"과학자"},
+        "Writer":{"English":"Writer","中文":"作家","日本語":"作家","한국어":"작가"},
+        "Poet":{"English":"Poet","中文":"诗人","日本語":"詩人","한국어":"시인"},
+        "Musician":{"English":"Musician","中文":"音乐家","日本語":"音楽家","한국어":"음악가"},
+        "Philosopher":{"English":"Philosopher","中文":"哲学家","日本語":"哲学者","한국어":"철학자"},
+        "Sociologist":{"English":"Sociologist","中文":"社会学家","日本語":"社会学者","한국어":"사회학자"},
+        "Psychologist":{"English":"Psychologist","中文":"心理学家","日本語":"心理学者","한국어":"심리학자"},
+        "Educator":{"English":"Educator","中文":"教育家","日本語":"教育者","한국어":"교육자"},
+        "Linguist":{"English":"Linguist","中文":"语言学家","日本語":"言語学者","한국어":"언어학자"},
+        "Anthropologist":{"English":"Anthropologist","中文":"人类学家","日本語":"人類学者","한국어":"인류학자"},
+        "Political Scientist":{"English":"Political Scientist","中文":"政治学家","日本語":"政治学者","한국어":"정치학자"},
+        "Economist":{"English":"Economist","中文":"经济学家","日本語":"経済学者","한국어":"경제학자"},
+        "Environmentalist":{"English":"Environmentalist","中文":"环境保护活动家","日本語":"環境保護活動家","한국어":"환경운동가"},
+        "Designer":{"English":"Designer","中文":"设计师","日本語":"デザイナー","한국어":"디자이너"},
+        "Engineer":{"English":"Engineer","中文":"工程师","日本語":"エンジニア","한국어":"엔지니어"},
+        "Doctor":{"English":"Doctor","中文":"医生","日本語":"医者","한국어":"의사"},
+        "Nurse":{"English":"Nurse","中文":"护士","日本語":"看護師","한국어":"간호사"},
+        "Architect":{"English":"Architect","中文":"建筑师","日本語":"建築家","한국어":"건축가"},
+        "Programmer":{"English":"Programmer","中文":"程序员","日本語":"プログラマー","한국어":"프로그래머"},
+        "Data Analyst":{"English":"Data Analyst","中文":"数据分析师","日本語":"データアナリスト","한국어":"데이터 분석가"},
+        "Nutritionist":{"English":"Nutritionist","中文":"营养师","日本語":"栄養士","한국어":"영양사"},
+        "Psychotherapist":{"English":"Psychotherapist","中文":"心理治疗师","日本語":"心理療法士","한국어":"심리치료사"},
+        "Pharmacist":{"English":"Pharmacist","中文":"药剂师","日本語":"薬剤師","한국어":"약사"},
+        "Physical Therapist":{"English":"Physical Therapist","中文":"理学疗法师","日本語":"理学療法士","한국어":"물리치료사"},
+        "Environmental Engineer":{"English":"Environmental Engineer","中文":"环境工程师","日本語":"環境エンジニア","한국어":"환경 엔지니어"},
+        "Urban Planner":{"English":"Urban Planner","中文":"城市规划师","日本語":"都市計画家","한국어":"도시 계획가"},
+        "Mechanical Engineer":{"English":"Mechanical Engineer","中文":"机械工程师","日本語":"機械工学者","한국어":"기계공학자"},
+        "Electrical Engineer":{"English":"Electrical Engineer","中文":"电气工程师","日本語":"電気工学者","한국어":"전기공학자"},
+        "Executive":{"English":"Executive","中文":"执行","日本語":"役員","한국어":"임원"},
+        "Technical Expert":{"English":"Technical Expert","中文":"技术专家","日本語":"技術専門家","한국어":"기술 전문가"},
+        "Marketing Specialist":{"English":"Marketing Specialist","中文":"市场营销专家","日本語":"マーケティングスペシャリスト","한국어":"마케팅 전문가"},
+        "Financial Analyst":{"English":"Financial Analyst","中文":"财务分析师","日本語":"財務アナリスト","한국어":"재무 분석가"},
+        "Human Resources Manager":{"English":"Human Resources Manager","中文":"人力资源经理","日本語":"人事マネージャー","한국어":"인사 관리자"},
+        "Legal Advisor":{"English":"Legal Advisor","中文":"法律顾问","日本語":"法律顧問","한국어":"법률 고문"},
+        "Public Relations Specialist":{"English":"Public Relations Specialist","中文":"公共关系专家","日本語":"広報スペシャリスト","한국어":"홍보 전문가"},
+        "Customer Representative":{"English":"Customer Representative","中文":"客户代表","日本語":"カスタマー代表","한국어":"고객 대표"},
+        "Supply Chain Management Specialist":{"English":"Supply Chain Management Specialist","中文":"供应链管理专家","日本語":"サプライチェーン管理スペシャリスト","한국어":"공급망 관리 전문가"},
+        "Researcher":{"English":"Researcher","中文":"研究员","日本語":"研究者","한국어":"연구원"},
+        "Policy Maker":{"English":"Policy Maker","中文":"政策制定者","日本語":"政策立案者","한국어":"정책 입안자"},
+        "Entrepreneur":{"English":"Entrepreneur","中文":"创业者","日本語":"起業家","한국어":"기업가"},
+        "Investor":{"English":"Investor","中文":"投资者","日本語":"投資家","한국어":"투자자"},
+        "Financial Advisor":{"English":"Financial Advisor","中文":"金融顾问","日本語":"ファイナンシャルアドバイザー","한국어":"재무 고문"},
+        "Corporate Social Responsibility Specialist":{"English":"Corporate Social Responsibility Specialist","中文":"企业社会责任专家","日本語":"企業の社会的責任スペシャリスト","한국어":"기업의 사회적 책임 전문가"}
+    }
+
+    options = participants_options_map.get(st.session_state.language, participants_options_map["English"])
+    default_participant = default_participant_map.get(st.session_state.language, default_participant_map["English"])
+    chosen_people_original= st.multiselect(label=text,options= options,default=default_participant)
+
+    chosen_people = [participants_language_map.get(person,person) for person in chosen_people_original]
+
     language_map = {
         "English": "Talk order",
         "中文": "谈话顺序",
@@ -181,7 +244,23 @@ with col1:
         "한국어": "대화 순서"
     }
     text = language_map.get(st.session_state.language, language_map["English"])
-    talk_order = st.selectbox(label=text,options=["Order","Random","Auto"],index=0)
+    order_language_map = {
+        "English": ["Order","Random","Auto"],
+        "中文": ["顺序","随机","自动"],
+        "日本語": ["順序","ランダム","自動"],
+        "한국어": ["순서","랜덤","자동"]
+    }
+    order_text = order_language_map.get(st.session_state.language, order_language_map["English"])
+    talk_order_original = st.selectbox(label=text,options=order_text,index=0)
+
+    talk_order_map = {
+        "Order": "Order","Random": "Random","Auto": "Auto",
+        "顺序": "Order","随机": "Random","自动": "Auto",
+        "順序": "Order","ランダム": "Random","自動": "Auto",
+        "순서": "Order","랜덤": "Random","자동": "Auto"
+    }
+    talk_order = talk_order_map.get(talk_order_original, "Order")
+
 
     c1,c2 = st.columns([1,1])
     with c1:
@@ -206,9 +285,9 @@ with col1:
                 st.toast("🎉 Discussion started.")
                 st.session_state.messages = [{"role": "user", "content": topic, "sender": "user"}]
                 st.session_state.thread_id = Group._generate_thread_id()
-                st.session_state.participants = [AgentSchema(name=person,
+                st.session_state.participants = [AgentSchema(name=person.replace(" ","_"),
                                             transfer_to_me_description=f"I am a {person}, call me if you have any questions related to {person}.",
-                                            agent=Agent(name=person,description=f"You are a {person},always reply in language {st.session_state.language}",
+                                            agent=Agent(name=person.replace(" ","_"),description=f"You are a {person},always reply in language {st.session_state.language}",
                                                         api_key=st.session_state.api_key,
                                                         base_url=st.session_state.base_url,
                                                         model=st.session_state.model
@@ -252,14 +331,14 @@ with col1:
 
 with col2:
     st.subheader("Discussion" if st.session_state.language == "English" else "讨论" if st.session_state.language == "中文" else "ディスカッション" if st.session_state.language == "日本語" else "토론")
-    if chosen_people:
+    if chosen_people_original:
         language_map = {
             "English": "There are **{}** in this discussion. [ Select next person by **{}** ]",
             "中文": "这次讨论中有 **{}** 。[ 通过 **{}** 选择下一个人 ]",
             "日本語": "このディスカッションには **{}** がいます。[ **{}** で次の人を選択 ]",
             "한국어": "이 토론에는 **{}** 가 있습니다. [ **{}** 로 다음 사람 선택 ]"
             }
-        caption_text = language_map.get(st.session_state.language, language_map["English"]).format(",".join(chosen_people), talk_order.lower())
+        caption_text = language_map.get(st.session_state.language, language_map["English"]).format(",".join(chosen_people_original), talk_order_original)
         st.caption(caption_text)
     if st.session_state.start_discussion and st.session_state.group:
         next_agent = st.session_state.group.current_agent.get(st.session_state.thread_id,st.session_state.group.entry_agent).name
@@ -280,9 +359,9 @@ with col2:
                     "日本語": "{} に転送",
                     "한국어": "{} 로 전환"
                 }
-                text = language_map.get(st.session_state.language, language_map["English"]).format(next_agent)
-                st.session_state.messages.append({"role": "assistant", "content":text.format(next_agent), "sender": "helper"})
-                message = build_message(st.session_state.messages,next_agent,topic,chosen_people)
+                text = language_map.get(st.session_state.language, language_map["English"]).format(participants_language_reverse_map.get(next_agent.replace("_"," ")).get(st.session_state.language, next_agent.replace("_"," ")))
+                st.session_state.messages.append({"role": "assistant", "content":text, "sender": "helper"})
+                message = build_message(st.session_state.messages,next_agent,topic,chosen_people_original)
                 response = await st.session_state.group.current_agent.get(st.session_state.thread_id).agent.chat_async(message)
                 st.session_state.messages.extend(response)
             with st.spinner('Discussion in progress...' if st.session_state.language == "English" else "讨论进行中..." if st.session_state.language == "中文" else "ディスカッション中..." if st.session_state.language == "日本語" else "토론 진행 중..."):
@@ -308,9 +387,9 @@ with col2:
                     "日本語": "{} に転送",
                     "한국어": "{} 로 전환"
                 }
-                text = language_map.get(st.session_state.language, language_map["English"]).format(next_agent)
-                st.session_state.messages.append({"role": "assistant", "content":text.format(next_agent), "sender": "helper"})
-                message = build_message(st.session_state.messages,next_agent,topic,chosen_people)
+                text = language_map.get(st.session_state.language, language_map["English"]).format(participants_language_reverse_map.get(next_agent.replace("_"," ")).get(st.session_state.language, next_agent.replace("_"," ")))
+                st.session_state.messages.append({"role": "assistant", "content":text, "sender": "helper"})
+                message = build_message(st.session_state.messages,next_agent,topic,chosen_people_original)
                 response = await st.session_state.group.current_agent.get(st.session_state.thread_id,st.session_state.group.entry_agent).agent.chat_async(message)
                 st.session_state.messages.extend(response)
             with st.spinner('Discussion in progress...' if st.session_state.language == "English" else "讨论进行中..." if st.session_state.language == "中文" else "ディスカッション中..." if st.session_state.language == "日本語" else "토론 진행 중..."):
