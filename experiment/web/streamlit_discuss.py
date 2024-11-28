@@ -93,7 +93,7 @@ with st.sidebar:
     st.session_state.base_url = st.text_input("Base URL")
     st.caption("Choose Your Model")
     st.session_state.model = st.selectbox("Model",["gpt-4o-mini","gpt-4o","gpt-4"],index=1)
-    st.session_state.discuss_language = st.selectbox("Language",["English","中文","日本語","한국어"],index=0)
+    st.session_state.discuss_language = st.selectbox("Output Language",["English","中文","日本語","한국어"],index=0)
 
     if st.session_state.api_key and not st.session_state.base_url:
         st.session_state.base_url = None
@@ -177,8 +177,9 @@ with col2:
             async def get_next_agent_auto():
                 next_agent = await st.session_state.group.handoff(
                     messages=[message for message in st.session_state.messages if message["sender"] != "helper"][-3:],
-                                                model="gpt-4o-mini",
+                                                model=st.session_state.model,
                                                 handoff_max_turns=1,
+                                                include_current = False,
                                                 next_speaker_select_mode="auto",
                                                 thread_id=st.session_state.thread_id)
                 st.session_state.messages.append({"role": "assistant", "content":"Transfer to {}".format(next_agent), "sender": "helper"})
@@ -195,8 +196,9 @@ with col2:
                 if not st.session_state.init_discussion:
                     next_agent = await st.session_state.group.handoff(
                         messages=[message for message in st.session_state.messages if message["sender"] != "helper"][-3:],
-                                                    model="gpt-4o-mini",
+                                                    model=st.session_state.model,
                                                     handoff_max_turns=1,
+                                                    include_current = False,
                                                     next_speaker_select_mode=next_speaker_select_mode.lower(),
                                                     thread_id=st.session_state.thread_id)
                 else:
