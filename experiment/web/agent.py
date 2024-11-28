@@ -3,10 +3,9 @@ import random
 from collections import defaultdict, deque
 from dataclasses import dataclass
 from typing import List, Optional
-from openai import OpenAI,AsyncOpenAI
+from openai import OpenAI
 from dotenv import load_dotenv
 import uuid
-import asyncio
 
 load_dotenv()
 
@@ -19,7 +18,6 @@ class Agent:
                  model: str = "gpt-4o-mini"):
         self.name = name
         self.description = description
-        self.async_client = AsyncOpenAI(api_key=api_key, base_url=base_url)
         self.client = OpenAI(api_key=api_key, base_url=base_url)
         self.model = model
 
@@ -27,20 +25,6 @@ class Agent:
         if isinstance(messages, str):
             messages = [{"role": "user", "content": messages}]
         response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "system", "content": self.description}] + messages,
-                stream=stream
-            )
-        
-        if not stream:
-            return [{"role": "assistant", "content": response.choices[0].message.content,"sender": self.name}]
-        else:
-            return response
-
-    async def chat_async(self, messages: list|str,stream: bool = False):
-        if isinstance(messages, str):
-            messages = [{"role": "user", "content": messages}]
-        response = await self.async_client.chat.completions.create(
                 model=self.model,
                 messages=[{"role": "system", "content": self.description}] + messages,
                 stream=stream
@@ -84,7 +68,7 @@ class Group:
             ValueError: If the group structure is not valid.
         """
         self.participants = participants
-        self.model_client = AsyncOpenAI(api_key=api_key, base_url=base_url) if model_client is None else model_client
+        self.model_client = OpenAI(api_key=api_key, base_url=base_url) if model_client is None else model_client
         self.model = model
         self.entry_agent = next((p for p in participants if p.as_entry), random.choice(participants))
         self.current_agent = {"DEFAULT":self.entry_agent}
@@ -108,7 +92,7 @@ class Group:
             self.current_agent = {"DEFAULT":self.entry_agent}
             self.handoff_tools = {"DEFAULT":[]}
 
-    async def handoff_one_turn(self, 
+    def handoff_one_turn(self, 
                          messages: list|str,
                          model:str="gpt-4o-mini",
                          next_speaker_select_mode:Literal["order","auto","random"]="auto",
@@ -154,12 +138,13 @@ class Group:
                 messages = [{"role": "user", "content": messages}]
             messages = [{"role": "system", "content":"deciding which agent to transfer to"}] + messages
 
-            response = await self.model_client.chat.completions.create(
+            response = self.model_client.chat.completions.create(
                         model=model,
                         messages=messages,
                         tools=self.handoff_tools.get(thread_id,[]),
                         tool_choice="required"
                     )
+            
             next_agent = response.choices[0].message.tool_calls[0].function.name
 
             if next_agent in self.agent_names:
@@ -174,7 +159,7 @@ class Group:
         else:
             raise ValueError(f"Unknown next_speaker_select_mode: {next_speaker_select_mode} , Currently only 'order', 'random' and 'auto' are supported")
 
-    async def handoff(self, 
+    def handoff(self, 
                 messages: list|str,
                 model:str="gpt-4o-mini",
                 handoff_max_turns:int=10,
@@ -197,13 +182,13 @@ class Group:
             verbose (bool, optional): Whether to print the handoff process. Defaults to False.
         """
 
-        next_agent = await self.handoff_one_turn(messages,model,next_speaker_select_mode,include_current,thread_id,verbose)
+        next_agent = self.handoff_one_turn(messages,model,next_speaker_select_mode,include_current,thread_id,verbose)
         if next_speaker_select_mode != "auto" or handoff_max_turns == 1:
             return next_agent
-        next_next_agent = await self.handoff_one_turn(messages,model,"auto",include_current,thread_id,verbose)
+        next_next_agent = self.handoff_one_turn(messages,model,"auto",include_current,thread_id,verbose)
         while next_next_agent != next_agent and handoff_max_turns > 1:
             next_agent = next_next_agent
-            next_next_agent = await self.handoff_one_turn(messages,model,"auto",include_current,thread_id,verbose)
+            next_next_agent = self.handoff_one_turn(messages,model,"auto",include_current,thread_id,verbose)
             handoff_max_turns -= 1
         return next_agent
 

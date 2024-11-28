@@ -5,6 +5,7 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 
+# https://docs.streamlit.io/develop/tutorials/llms/build-conversational-apps
 
 # Set the page layout to wide mode
 st.set_page_config(layout="wide",initial_sidebar_state="collapsed")
@@ -411,6 +412,7 @@ with col1:
     prompt = st.chat_input(text)
 
 with col2:
+    
     st.subheader("Discussion" if st.session_state.language == "English" else "讨论" if st.session_state.language == "中文" else "ディスカッション" if st.session_state.language == "日本語" else "토론")
     if chosen_people_original:
         language_map = {
@@ -421,62 +423,89 @@ with col2:
             }
         caption_text = language_map.get(st.session_state.language, language_map["English"]).format(",".join(chosen_people_original), talk_order_original)
         st.caption(caption_text)
+
+
+    for index,message in enumerate(st.session_state.messages):
+        if "sender" in message and message["sender"] == "helper":
+            with st.chat_message("ai"):
+                st.markdown(message["content"].split(",")[0])
+        else:
+            with st.chat_message(message["sender"] if "sender" in message else message["role"]):
+                st.markdown(message["content"])
+
     if st.session_state.start_discussion and st.session_state.group:
         next_agent = st.session_state.group.current_agent.get(st.session_state.thread_id,st.session_state.group.entry_agent).name
         if not st.session_state.skip_me and prompt:
             st.session_state.messages.append({"role": "user", "content":prompt, "sender": "user"})
-            
-            async def get_next_agent_auto():
-                next_agent = await st.session_state.group.handoff(
+            with st.chat_message("user"):
+                st.markdown(prompt)
+            next_agent = st.session_state.group.handoff(
+                messages=[message for message in st.session_state.messages if message["sender"] != "helper"][-3:],
+                                            model=st.session_state.model,
+                                            handoff_max_turns=1,
+                                            include_current = False,
+                                            next_speaker_select_mode="auto",
+                                            thread_id=st.session_state.thread_id)
+            language_map = {
+                "English": "Transfer to {}",
+                "中文": "转接给 {}",
+                "日本語": "{} に転送",
+                "한국어": "{} 로 전환"
+            }
+            text = language_map.get(st.session_state.language, language_map["English"]).format(participants_language_reverse_map.get(next_agent.replace("_"," ")).get(st.session_state.language, next_agent.replace("_"," ")))
+            st.session_state.messages.append({"role": "assistant", "content":text, "sender": "helper"})
+            with st.chat_message("ai"):
+                st.markdown(text)
+            message = build_message(st.session_state.messages,next_agent,topic,chosen_people_original)
+            stream = st.session_state.group.current_agent.get(st.session_state.thread_id).agent.chat(message,stream=True)
+            with st.chat_message(next_agent):
+                response = st.write_stream(stream)
+                language_map = {
+                    "English": "Next Person",
+                    "中文": "下一个人",
+                    "日本語": "次の人",
+                    "한국어": "다음 사람"
+                }
+                text = language_map.get(st.session_state.language, language_map["English"])
+                st.button(label=text,on_click=skip_me, key="next_person")
+            st.session_state.messages.append({"role": "assistant", "content":response, "sender": next_agent})
+            st.session_state.init_discussion = False
+        else:
+            st.session_state.skip_me = False
+            if not st.session_state.init_discussion:
+                next_agent = st.session_state.group.handoff(
                     messages=[message for message in st.session_state.messages if message["sender"] != "helper"][-3:],
                                                 model=st.session_state.model,
                                                 handoff_max_turns=1,
                                                 include_current = False,
-                                                next_speaker_select_mode="auto",
+                                                next_speaker_select_mode=talk_order.lower(),
                                                 thread_id=st.session_state.thread_id)
+            else:
+                next_agent = st.session_state.group.entry_agent.name
+            language_map = {
+                "English": "Transfer to {}",
+                "中文": "转接给 {}",
+                "日本語": "{} に転送",
+                "한국어": "{} 로 전환"
+            }
+            text = language_map.get(st.session_state.language, language_map["English"]).format(participants_language_reverse_map.get(next_agent.replace("_"," ")).get(st.session_state.language, next_agent.replace("_"," ")))
+            st.session_state.messages.append({"role": "assistant", "content":text, "sender": "helper"})
+            with st.chat_message("ai"):
+                st.markdown(text)
+            message = build_message(st.session_state.messages,next_agent,topic,chosen_people_original)
+            stream = st.session_state.group.current_agent.get(st.session_state.thread_id,st.session_state.group.entry_agent).agent.chat(message,stream=True)
+            with st.chat_message(next_agent):
+                response = st.write_stream(stream)
                 language_map = {
-                    "English": "Transfer to {}",
-                    "中文": "转接给 {}",
-                    "日本語": "{} に転送",
-                    "한국어": "{} 로 전환"
+                    "English": "Next Person",
+                    "中文": "下一个人",
+                    "日本語": "次の人",
+                    "한국어": "다음 사람"
                 }
-                text = language_map.get(st.session_state.language, language_map["English"]).format(participants_language_reverse_map.get(next_agent.replace("_"," ")).get(st.session_state.language, next_agent.replace("_"," ")))
-                st.session_state.messages.append({"role": "assistant", "content":text, "sender": "helper"})
-                message = build_message(st.session_state.messages,next_agent,topic,chosen_people_original)
-                response = await st.session_state.group.current_agent.get(st.session_state.thread_id).agent.chat_async(message)
-                st.session_state.messages.extend(response)
-            with st.spinner('Discussion in progress...' if st.session_state.language == "English" else "讨论进行中..." if st.session_state.language == "中文" else "ディスカッション中..." if st.session_state.language == "日本語" else "토론 진행 중..."):
-                asyncio.run(get_next_agent_auto())
-                st.session_state.init_discussion = False
-
-        else:
-            st.session_state.skip_me = False
-            async def get_next_agent(next_speaker_select_mode):
-                if not st.session_state.init_discussion:
-                    next_agent = await st.session_state.group.handoff(
-                        messages=[message for message in st.session_state.messages if message["sender"] != "helper"][-3:],
-                                                    model=st.session_state.model,
-                                                    handoff_max_turns=1,
-                                                    include_current = False,
-                                                    next_speaker_select_mode=next_speaker_select_mode.lower(),
-                                                    thread_id=st.session_state.thread_id)
-                else:
-                    next_agent = st.session_state.group.entry_agent.name
-                language_map = {
-                    "English": "Transfer to {}",
-                    "中文": "转接给 {}",
-                    "日本語": "{} に転送",
-                    "한국어": "{} 로 전환"
-                }
-                text = language_map.get(st.session_state.language, language_map["English"]).format(participants_language_reverse_map.get(next_agent.replace("_"," ")).get(st.session_state.language, next_agent.replace("_"," ")))
-                st.session_state.messages.append({"role": "assistant", "content":text, "sender": "helper"})
-                message = build_message(st.session_state.messages,next_agent,topic,chosen_people_original)
-                response = await st.session_state.group.current_agent.get(st.session_state.thread_id,st.session_state.group.entry_agent).agent.chat_async(message)
-                st.session_state.messages.extend(response)
-            with st.spinner('Discussion in progress...' if st.session_state.language == "English" else "讨论进行中..." if st.session_state.language == "中文" else "ディスカッション中..." if st.session_state.language == "日本語" else "토론 진행 중..."):
-                asyncio.run(get_next_agent(talk_order))
-                st.session_state.init_discussion = False
-
+                text = language_map.get(st.session_state.language, language_map["English"])
+                st.button(label=text,on_click=skip_me, key="next_person_")
+            st.session_state.messages.append({"role": "assistant", "content":response, "sender": next_agent})
+            st.session_state.init_discussion = False
     else:
         if not st.session_state.api_key and not st.session_state.base_url:
             language_map = {
@@ -524,19 +553,3 @@ with col2:
         text = language_map.get(st.session_state.language, language_map["English"])
         st.info(text)
     
-    for index,message in enumerate(st.session_state.messages):
-        if "sender" in message and message["sender"] == "helper":
-            with st.chat_message("ai"):
-                st.write(message["content"].split(",")[0])
-        else:
-            with st.chat_message(message["sender"] if "sender" in message else message["role"]):
-                st.write(message["content"])
-                if index == len(st.session_state.messages) - 1:
-                    language_map = {
-                        "English": "Next Person",
-                        "中文": "下一个人",
-                        "日本語": "次の人",
-                        "한국어": "다음 사람"
-                    }
-                    text = language_map.get(st.session_state.language, language_map["English"])
-                    st.button(label=text,on_click=skip_me, key="next_person")
