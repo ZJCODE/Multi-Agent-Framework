@@ -112,6 +112,12 @@ ma.chat(messages=[{"role": "user", "content": "what is the weather in Hangzhou a
 - [Stand-alone Multi-Agent Framework V2](experiment/standalone_multi_framework_v2.ipynb)
 - [Stand-alone Multi-Agent Framework V3 Async](experiment/standalone_multi_framework_v3.ipynb)
 
+## Experiment Web App
+
+- [Agents Talk APP](experiment/web/README.md)
+
+- [Agents Talk APP Online Demo](https://agentstalk.streamlit.app/)
+
 ---
 
 中文版本 : [README-ZH](README-ZH.md)
