@@ -3,6 +3,8 @@ from agent import Group, AgentSchema,Agent
 import asyncio
 import os
 from dotenv import load_dotenv
+from openai import OpenAI
+
 
 # Set the page layout to wide mode
 st.set_page_config(layout="wide",initial_sidebar_state="collapsed")
@@ -48,6 +50,9 @@ if "init_discussion" not in st.session_state:
 if "more_participants" not in st.session_state:
     st.session_state.more_participants = []
 
+if "more_participants_translate" not in st.session_state:
+    st.session_state.more_participants_translate = []
+
 if "language" not in st.session_state:
     st.session_state.language = "English"
 
@@ -58,6 +63,37 @@ def restart_discussion():
     st.session_state.messages = []
     st.session_state.start_discussion = False
     st.session_state.init_discussion = True
+    st.session_state.more_participants = []
+    st.session_state.more_participants_translate = []
+
+@st.cache_data
+def translate2english(text,api_key,base_url,model):
+        client = OpenAI(api_key=api_key, base_url=base_url)
+        response =  client.chat.completions.create(
+            model=model,
+            messages=[{"role": "system", "content": """
+                       Translate text to English
+
+                       ## Example 1
+                        - Input: 编剧
+                        - Output: Screenwriter
+                       ## Example 2
+                        - Input: writer
+                        - Output: Writer 
+                       ## Example 3
+                        - Input: 导演，演员
+                        - Output: Director,Actor
+                       ## Example 4
+                        - Input: 设计师，工程师，医生
+                        - Output: Designer,Engineer,Doctor
+
+                       ## Task
+                        - Translate the following text to English
+                       """
+                       }] + [{"role": "user", "content": text}],
+            stream=False
+            )
+        return response.choices[0].message.content
 
 
 def build_message(messages_history, current_speaker,topic,participants=[],max_message_length=20):
@@ -120,14 +156,46 @@ with st.sidebar:
     text = language_map.get(st.session_state.language, language_map["English"])
     st.caption(text)
     language_map = {
-        "English": "Currently, only English is available, formatted as Designer,Engineer",
-        "中文": "目前仅支持英文，格式为 Designer,Engineer",
-        "日本語": "現在は英語のみで、Designer,Engineerのようにフォーマットされています",
-        "한국어": "현재 영어만 사용 가능하며, Designer,Engineer와 같이 형식화됩니다"
+        "English": "Formatted as Designer,Engineer",
+        "中文": "格式为 设计师,工程师",
+        "日本語": "デザイナー、エンジニアなどの形式",
+        "한국어": "디자이너,엔지니어 형식"
     }
     text = language_map.get(st.session_state.language, language_map["English"])
-    participants = st.text_area(placeholder=text,label="More Participants", value="",label_visibility="collapsed").replace("，", ",").split(",")
-    st.session_state.more_participants = [] if participants == [''] else participants
+    participants_raw = st.text_area(placeholder=text,label="More Participants", 
+                                    value=",".join(st.session_state.more_participants),
+                                    label_visibility="collapsed")
+    language_map = {
+        "English": "Add",
+        "中文": "添加",
+        "日本語": "追加",
+        "한국어": "추가"
+    }
+    text = language_map.get(st.session_state.language, language_map["English"])
+    if st.button(text):
+        if participants_raw:
+            participants = participants_raw.replace("，", ",").split(",")
+
+            with st.spinner('Adding participants...' if st.session_state.language == "English" else "添加参与者中..." if st.session_state.language == "中文" else "参加者を追加中..." if st.session_state.language == "日本語" else "참가자 추가 중..."):
+                participants_translate = translate2english(participants_raw,st.session_state.api_key,st.session_state.base_url,st.session_state.model).replace("，", ",").split(",")
+                if len(participants) != len(participants_translate):
+                    language_map = {
+                        "English": "Please formatted as Designer,Engineer",
+                        "中文": "请按照 设计师,工程师 的格式 输入",
+                        "日本語": "デザイナー、エンジニアなどの形式で入力してください",
+                        "한국어": "디자이너,엔지니어 형식으로 입력해주세요"
+                    }
+                    text = language_map.get(st.session_state.language, language_map["English"])
+                    st.warning(text)
+                else:
+                    st.session_state.more_participants = [] if participants == [''] else participants
+                    st.session_state.more_participants_translate = [] if participants_translate == [''] else [x.strip() for x in  participants_translate]
+                    st.warning(st.session_state.more_participants_translate)
+                    st.warning(st.session_state.more_participants)
+        else:
+            st.session_state.more_participants = []
+            st.session_state.more_participants_translate = []
+            st.warning("Please input participants")
 
 with col1:
 
@@ -181,6 +249,10 @@ with col1:
         "モデレーター":"Moderator","数学者":"Mathematician","アーティスト":"Artist","歴史家":"Historian","科学者":"Scientist","作家":"Writer","詩人":"Poet","音楽家":"Musician","哲学者":"Philosopher","社会学者":"Sociologist","心理学者":"Psychologist","教育者":"Educator","言語学者":"Linguist","人類学者":"Anthropologist","政治学者":"Political Scientist","経済学者":"Economist","環境保護活動家":"Environmentalist","デザイナー":"Designer","エンジニア":"Engineer","医者":"Doctor","看護師":"Nurse","建築家":"Architect","プログラマー":"Programmer","データアナリスト":"Data Analyst","栄養士":"Nutritionist","心理療法士":"Psychotherapist","薬剤師":"Pharmacist","理学療法士":"Physical Therapist","環境エンジニア":"Environmental Engineer","都市計画家":"Urban Planner","機械工学者":"Mechanical Engineer","電気工学者":"Electrical Engineer","役員":"Executive","技術専門家":"Technical Expert","マーケティングスペシャリスト":"Marketing Specialist","財務アナリスト":"Financial Analyst","人事マネージャー":"Human Resources Manager","法律顧問":"Legal Advisor","広報スペシャリスト":"Public Relations Specialist","カスタマー代表":"Customer Representative","サプライチェーン管理スペシャリスト":"Supply Chain Management Specialist","研究者":"Researcher","政策立案者":"Policy Maker","起業家":"Entrepreneur","投資家":"Investor","ファイナンシャルアドバイザー":"Financial Advisor","企業の社会的責任スペシャリスト":"Corporate Social Responsibility Specialist",
         "모더레이터":"Moderator","수학자":"Mathematician","예술가":"Artist","역사학자":"Historian","과학자":"Scientist","작가":"Writer","시인":"Poet","음악가":"Musician","철학자":"Philosopher","사회학자":"Sociologist","심리학자":"Psychologist","교육자":"Educator","언어학자":"Linguist","인류학자":"Anthropologist","정치학자":"Political Scientist","경제학자":"Economist","환경운동가":"Environmentalist","디자이너":"Designer","엔지니어":"Engineer","의사":"Doctor","간호사":"Nurse","건축가":"Architect","프로그래머":"Programmer","데이터 분석가":"Data Analyst","영양사":"Nutritionist","심리치료사":"Psychotherapist","약사":"Pharmacist","물리치료사":"Physical Therapist","환경 엔지니어":"Environmental Engineer","도시 계획가":"Urban Planner","기계공학자":"Mechanical Engineer","전기공학자":"Electrical Engineer","임원":"Executive","기술 전문가":"Technical Expert","마케팅 전문가":"Marketing Specialist","재무 분석가":"Financial Analyst","인사 관리자":"Human Resources Manager","법률 고문":"Legal Advisor","홍보 전문가":"Public Relations Specialist","고객 대표":"Customer Representative","공급망 관리 전문가":"Supply Chain Management Specialist","연구원":"Researcher","정책 입안자":"Policy Maker","기업가":"Entrepreneur","투자자":"Investor","재무 고문":"Financial Advisor","기업의 사회적 책임 전문가":"Corporate Social Responsibility Specialist"}
 
+
+    for i in range(len(st.session_state.more_participants)):
+        participants_language_map[st.session_state.more_participants[i]] = st.session_state.more_participants_translate[i]
+
     participants_language_reverse_map = {
         "Moderator":{"English":"Moderator","中文":"主持人","日本語":"モデレーター","한국어":"모더레이터"},
         "Mathematician":{"English":"Mathematician","中文":"数学家","日本語":"数学者","한국어":"수학자"},
@@ -230,6 +302,15 @@ with col1:
         "Financial Advisor":{"English":"Financial Advisor","中文":"金融顾问","日本語":"ファイナンシャルアドバイザー","한국어":"재무 고문"},
         "Corporate Social Responsibility Specialist":{"English":"Corporate Social Responsibility Specialist","中文":"企业社会责任专家","日本語":"企業の社会的責任スペシャリスト","한국어":"기업의 사회적 책임 전문가"}
     }
+
+        # st.session_state.more_participants_translate
+        # st.seeeion_state.more_participants
+        # update participants_language_reverse_map
+    for i in range(len(st.session_state.more_participants)):
+        if st.session_state.more_participants_translate[i] not in participants_language_reverse_map:
+            participants_language_reverse_map[st.session_state.more_participants_translate[i]] = {st.session_state.language:st.session_state.more_participants[i]}
+        else:
+            participants_language_reverse_map[st.session_state.more_participants_translate[i]][st.session_state.language] = st.session_state.more_participants[i]
 
     options = participants_options_map.get(st.session_state.language, participants_options_map["English"])
     default_participant = default_participant_map.get(st.session_state.language, default_participant_map["English"])
