@@ -117,9 +117,9 @@ def build_message(messages_history, current_speaker,topic,participants=[],max_me
     \n### Task\n
     As a {}, it's your turn,consider the previous opinions and participates in the discussion.
     """.format(topic,
-                "\n".join([f"- {participant}" for participant in participants]),
-                "\n\n".join([f"- {message['content']}" for message in current_speaker_message]),
-                "\n\n".join([f"- [{message['sender']}]:{message['content']}" for message in other_people_messages]),
+                ",".join(participants),
+                "\n\n".join([f"```\n{message['content']}\n```" for message in current_speaker_message]),
+                "\n\n".join([f"\n{message['sender']} said :\n ```\n{message['content']}\n```" for message in other_people_messages]),
                 current_speaker)
     
     return prompt
@@ -365,7 +365,7 @@ with col1:
             else:
                 st.session_state.start_discussion = True
                 st.toast("🎉 Discussion started.")
-                st.session_state.messages = [{"role": "user", "content": topic, "sender": "user"}]
+                # st.session_state.messages = [{"role": "user", "content": topic, "sender": "user"}]
                 st.session_state.thread_id = Group._generate_thread_id()
                 st.session_state.participants = [AgentSchema(name=person.replace(" ","_"),
                                             transfer_to_me_description=f"I am a {person}, call me if you have any questions related to {person}.",
@@ -436,7 +436,17 @@ with col2:
     if st.session_state.start_discussion and st.session_state.group:
         next_agent = st.session_state.group.current_agent.get(st.session_state.thread_id,st.session_state.group.entry_agent).name
         if not st.session_state.skip_me and prompt:
+            language_map = {
+                "English": "User Participated",
+                "中文": "用户参与",
+                "日本語": "ユーザーが参加しました",
+                "한국어": "사용자 참여"
+            }
+            text = language_map.get(st.session_state.language, language_map["English"])
+            st.session_state.messages.append({"role": "assistant", "content":prompt, "sender": "helper"})
             st.session_state.messages.append({"role": "user", "content":prompt, "sender": "user"})
+            with st.chat_message("ai"):
+                st.markdown(text)
             with st.chat_message("user"):
                 st.markdown(prompt)
             next_agent = st.session_state.group.handoff(
@@ -457,6 +467,7 @@ with col2:
             with st.chat_message("ai"):
                 st.markdown(text)
             message = build_message(st.session_state.messages,next_agent,topic,chosen_people_original)
+            st.warning(message)
             stream = st.session_state.group.current_agent.get(st.session_state.thread_id).agent.chat(message,stream=True)
             with st.chat_message(next_agent):
                 response = st.write_stream(stream)
