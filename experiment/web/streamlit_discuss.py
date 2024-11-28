@@ -106,21 +106,30 @@ def build_message(messages_history, current_speaker,topic,participants=[],max_me
     current_speaker_message = current_speaker_message[-max_message_length:]
     other_people_messages = other_people_messages[-max_message_length:]
     
-    prompt = """
-    # Discussion on Topic: {}\n
-    \n### Participants\n
-    {}
-    \n### Your Previous Opinions\n
-    {}
-    \n### Other people's Opinions\n
-    {}
-    \n### Task\n
-    As a {}, it's your turn,consider the previous opinions and participates in the discussion.
-    """.format(topic,
+    prompt = """# Discussion on Topic: {}
+
+### Participants
+
+{}
+
+### Your Previous Opinions
+
+{}
+
+### Other people's Opinions
+
+{}
+
+### Task
+
+Consider the previous opinions in the discussion. As a {}, it's your turn to speak.""".format(topic,
                 ",".join(participants),
-                "\n\n".join([f"```\n{message['content']}\n```" for message in current_speaker_message]),
-                "\n\n".join([f"\n{message['sender']} said :\n ```\n{message['content']}\n```" for message in other_people_messages]),
+                "\n\n".join([f"{message['content']}" for message in current_speaker_message]),
+                "\n\n".join([f"\n```{message['sender']}\n{message['content']}\n```" for message in other_people_messages]),
                 current_speaker)
+    
+    if current_speaker == 'Moderator':
+        prompt += "\n\nAs a moderator, you can ask questions, summarize the discussion, or guide the conversation. if there is no previous message, you can start the discussion."
     
     return prompt
 
@@ -467,7 +476,6 @@ with col2:
             with st.chat_message("ai"):
                 st.markdown(text)
             message = build_message(st.session_state.messages,next_agent,topic,chosen_people_original)
-            st.warning(message)
             stream = st.session_state.group.current_agent.get(st.session_state.thread_id).agent.chat(message,stream=True)
             with st.chat_message(next_agent):
                 response = st.write_stream(stream)
