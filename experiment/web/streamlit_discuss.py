@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 import json
+from pydantic import BaseModel
 
 # Set the page layout to wide mode
 st.set_page_config(layout="wide",initial_sidebar_state="collapsed")
@@ -58,6 +59,9 @@ if "more_participants_translate" not in st.session_state:
 if "language" not in st.session_state:
     st.session_state.language = "English"
 
+if "auto_recommend_participant" not in st.session_state:
+    st.session_state.auto_recommend_participant = False
+
 def skip_me():
     st.session_state.skip_me = True
 
@@ -97,6 +101,25 @@ def translate2english(text,api_key,base_url,model):
             )
         return response.choices[0].message.content
 
+
+@st.cache_data
+def auto_recommend_participant(topic,supplementary_information,participants,api_key,base_url,model):
+    client = OpenAI(api_key=api_key, base_url=base_url)
+    class AutoParticipant(BaseModel):
+        participants: list[str]
+
+    completion = client.beta.chat.completions.parse(
+        model=model,
+        messages=[
+            {"role": "system", "content": "Select the three most appropriate participants for the following topic"},
+            {"role": "user", "content": "Topic: {}\n\nSupplementary Information: {}\n\nParticipants: {}".format(topic,supplementary_information,",".join(participants))}
+        ],
+        response_format=AutoParticipant,
+    )
+
+    res = completion.choices[0].message.parsed
+
+    return res.participants
 
 def build_message(messages_history, current_speaker,topic,supplementary_information,participants=[],max_message_length=10):
     current_speaker_message = [message for message in messages_history if message["sender"] == current_speaker]
@@ -274,6 +297,7 @@ with col1:
     }
     text = language_map.get(st.session_state.language, language_map["English"])
     supplementary_information = st.text_area(text)
+
     language_map = {
         "English": "Discuss Settings",
         "中文": "讨论设置",
@@ -375,6 +399,16 @@ with col1:
     default_participant = default_participant_map.get(st.session_state.language, default_participant_map["English"])
     chosen_people_original= st.multiselect(label=text,options= options,default=default_participant)
 
+    if topic:
+        recommended_participants = auto_recommend_participant(topic,supplementary_information,options,st.session_state.api_key,st.session_state.base_url,st.session_state.model)
+        language_map = {
+            "English": "Recommended",
+            "中文": "推荐",
+            "日本語": "おすすめ",
+            "한국어": "추천"
+        }
+        st.caption("Recommended: {}".format(",".join(recommended_participants)))
+
     chosen_people = [participants_language_map.get(person,person) for person in chosen_people_original]
 
     language_map = {
@@ -412,32 +446,27 @@ with col1:
         }
         text = language_map.get(st.session_state.language, language_map["English"])
         if st.button(text):
-            if not st.session_state.api_key and not st.session_state.base_url:
-                st.toast("🚨 Please enter your API Key and Base URL in the sidebar")
-            elif not topic:
-                st.toast("🚨 Please enter a topic")
-            elif not chosen_people:
-                st.toast("🚨 Please choose who to discuss with")
-            elif chosen_people == ["Moderator"]:
-                st.toast("🚨 Please choose at least one more person to discuss with")
-            else:
-                st.session_state.start_discussion = True
-                st.toast("🎉 Discussion started.")
-                # st.session_state.messages = [{"role": "user", "content": topic, "sender": "user"}]
-                st.session_state.thread_id = Group._generate_thread_id()
-                st.session_state.participants = [AgentSchema(name=person.replace(" ","_"),
-                                            transfer_to_me_description=f"I am a {person}, call me if you have any questions related to {person}.",
-                                            agent=Agent(name=person.replace(" ","_"),description=f"You are a {person},reply in short form and always reply in language {st.session_state.language}",
-                                                        api_key=st.session_state.api_key,
-                                                        base_url=st.session_state.base_url,
-                                                        model=st.session_state.model
-                                                        ),
-                                            as_entry=True if person == "Moderator" else False) 
-                                            for person in chosen_people]
-                st.session_state.group = Group(participants=st.session_state.participants
-                                               ,api_key=st.session_state.api_key
-                                               ,base_url=st.session_state.base_url,
-                                                  model=st.session_state.model)
+            st.session_state.start_discussion = True
+            st.toast("🎉 Discussion started.")
+            # st.session_state.messages = [{"role": "user", "content": topic, "sender": "user"}]
+            st.session_state.thread_id = Group._generate_thread_id()
+        st.session_state.participants = [AgentSchema(name=person.replace(" ","_"),
+                                    transfer_to_me_description=f"I am a {person}, call me if you have any questions related to {person}.",
+                                    agent=Agent(name=person.replace(" ","_"),description=f"You are a {person},reply in short form and always reply in language {st.session_state.language}",
+                                                api_key=st.session_state.api_key,
+                                                base_url=st.session_state.base_url,
+                                                model=st.session_state.model
+                                                ),
+                                    as_entry=True if person == "Moderator" else False) 
+                                    for person in chosen_people]
+        if st.session_state.participants:
+            st.session_state.group = Group(participants=st.session_state.participants
+                                            ,api_key=st.session_state.api_key
+                                            ,base_url=st.session_state.base_url,
+                                                model=st.session_state.model)
+        else:
+            st.session_state.group = None
+
     with c2:
         language_map = {
             "English": "Stop Discussion",
