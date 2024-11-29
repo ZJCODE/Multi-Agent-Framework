@@ -1,11 +1,8 @@
 import streamlit as st
 from agent import Group, AgentSchema,Agent
-import asyncio
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
-
-# https://docs.streamlit.io/develop/tutorials/llms/build-conversational-apps
 
 # Set the page layout to wide mode
 st.set_page_config(layout="wide",initial_sidebar_state="collapsed")
@@ -98,8 +95,6 @@ def translate2english(text,api_key,base_url,model):
 
 
 def build_message(messages_history, current_speaker,topic,participants=[],max_message_length=20):
-    # preview other people's messages
-    # current speaker's previous messages
     current_speaker_message = [message for message in messages_history if message["sender"] == current_speaker]
     other_people_messages = [message for message in messages_history if message["sender"] not in ["helper",current_speaker]]
 
@@ -130,6 +125,31 @@ Consider the previous opinions in the discussion. As a {}, it's your turn to spe
     
     if current_speaker == 'Moderator':
         prompt += "\n\nAs a moderator, you can ask questions, summarize the discussion, or guide the conversation. if there is no previous message, you can start the discussion."
+    
+    return prompt
+
+def build_handoff_message(messages_history,topic,participants=[]):
+    prompt = """# Discussion Topic: {}
+
+### Participants
+
+{}
+
+### The Order of People Who Have Already Spoken
+
+{}
+
+### Last Message
+
+{} said: {}
+
+### Task
+
+Take into account all participants and the sequence of individuals who have already spoken. Then, use the most recent message to decide who should speak next.""".format(topic,
+                ",".join(participants),
+                ",".join([f"{message['sender']}" for message in messages_history if message["sender"] not in ["helper"]]),
+                messages_history[-1]["sender"],
+                messages_history[-1]["content"])
     
     return prompt
 
@@ -459,7 +479,7 @@ with col2:
             with st.chat_message("user"):
                 st.markdown(prompt)
             next_agent = st.session_state.group.handoff(
-                messages=[message for message in st.session_state.messages if message["sender"] != "helper"][-3:],
+                messages=build_handoff_message(st.session_state.messages,topic,chosen_people),
                                             model=st.session_state.model,
                                             handoff_max_turns=1,
                                             include_current = False,
@@ -493,7 +513,7 @@ with col2:
             st.session_state.skip_me = False
             if not st.session_state.init_discussion:
                 next_agent = st.session_state.group.handoff(
-                    messages=[message for message in st.session_state.messages if message["sender"] != "helper"][-3:],
+                    messages=build_handoff_message(st.session_state.messages,topic,chosen_people),
                                                 model=st.session_state.model,
                                                 handoff_max_turns=1,
                                                 include_current = False,
