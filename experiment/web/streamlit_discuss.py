@@ -257,8 +257,8 @@ with st.sidebar:
                         st.session_state.more_participants = participants
                         st.session_state.more_participants_translate = participants_translate
                         st.success("Participants added successfully" if st.session_state.language == "English" else "成功添加参与者" if st.session_state.language == "中文" else "参加者が正常に追加されました" if st.session_state.language == "日本語" else "참가자가 성공적으로 추가되었습니다")
-                        st.warning(st.session_state.more_participants_translate)
-                        st.warning(st.session_state.more_participants)
+                        # st.warning(st.session_state.more_participants_translate)
+                        # st.warning(st.session_state.more_participants)
         else:
             st.session_state.more_participants = []
             st.session_state.more_participants_translate = []
@@ -482,7 +482,7 @@ with col1:
                                                     ),
                                         as_entry=True if person == "Moderator" else False) 
                                         for person in chosen_people]
-            st.warning("Participants: {}".format(",".join(chosen_people))) #debug
+            # st.warning("Participants: {}".format(",".join(chosen_people))) #debug
             if st.session_state.participants:
                 st.session_state.group = Group(participants=st.session_state.participants
                                                 ,api_key=st.session_state.api_key
