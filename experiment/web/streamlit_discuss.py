@@ -59,8 +59,8 @@ if "more_participants_translate" not in st.session_state:
 if "language" not in st.session_state:
     st.session_state.language = "English"
 
-if "auto_recommend_participant" not in st.session_state:
-    st.session_state.auto_recommend_participant = False
+if "recommend_participant" not in st.session_state:
+    st.session_state.recommend_participant = False
 
 if "participants_select_mode" not in st.session_state:
     st.session_state.participants_select_mode = True
@@ -263,6 +263,21 @@ with st.sidebar:
             st.session_state.more_participants = []
             st.session_state.more_participants_translate = []
             st.warning("Please input participants")
+    language_map = {
+        "English": "Suggest Participants",
+        "中文": "自动推荐参与者",
+        "日本語": "自動的に参加者を推薦",
+        "한국어": "자동으로 참가자 추천"
+    }
+    text = language_map.get(st.session_state.language, language_map["English"])
+    help_language_map = {
+        "English": "Auto recommend participants based on the topic and supplementary information",
+        "中文": "根据话题和补充信息自动推荐参与者",
+        "日本語": "トピックと補足情報に基づいて参加者を自動推薦",
+        "한국어": "주제와 보충 정보에 따라 참가자를 자동으로 추천합니다"
+    }
+    help_text = help_language_map.get(st.session_state.language, help_language_map["English"])
+    st.toggle(text,key="recommend_participant",help=help_text)
 
 with col1:
 
@@ -384,7 +399,7 @@ with col1:
 
     options = participants_options_map.get(st.session_state.language, participants_options_map["English"])
     
-    if topic:
+    if topic and st.session_state.recommend_participant:
         recommended_participants = auto_recommend_participant(topic,supplementary_information,options,st.session_state.api_key,st.session_state.base_url,st.session_state.model)
         language_map = {
             "English": "Recommended",
