@@ -34,6 +34,9 @@ if "start_discussion" not in st.session_state:
 if "topic" not in st.session_state:
     st.session_state.topic = ""
 
+if "supplementary_information" not in st.session_state:
+    st.session_state.supplementary_information = ""
+
 if "base_url" not in st.session_state:
     st.session_state.base_url = ""
 
@@ -95,7 +98,7 @@ def translate2english(text,api_key,base_url,model):
         return response.choices[0].message.content
 
 
-def build_message(messages_history, current_speaker,topic,participants=[],max_message_length=10):
+def build_message(messages_history, current_speaker,topic,supplementary_information,participants=[],max_message_length=10):
     current_speaker_message = [message for message in messages_history if message["sender"] == current_speaker]
     other_people_messages = [message for message in messages_history if message["sender"] not in ["helper",current_speaker]]
 
@@ -103,6 +106,12 @@ def build_message(messages_history, current_speaker,topic,participants=[],max_me
     other_people_messages = other_people_messages[-max_message_length:]
     
     prompt = """# Topic: {}
+
+###  Supplementary Information
+
+```
+{}
+```
 
 ### Participants
 
@@ -119,13 +128,16 @@ def build_message(messages_history, current_speaker,topic,participants=[],max_me
 ### Task
 
 Consider the previous opinions in the discussion. As a {}, it's your turn to speak.""".format(topic,
+                supplementary_information,
                 ",".join(participants),
                 "\n\n".join([f"{message['content']}" for message in current_speaker_message]),
-                "\n\n".join([f"{message['content']}" for message in other_people_messages]),
+                "\n\n".join([f"```{message['sender']}\n{message['content']}\n```" for message in other_people_messages]),
                 current_speaker)
     
     if current_speaker == 'Moderator':
         prompt += "\n\nAs a moderator, you can ask questions, summarize the discussion, or guide the conversation. if there is no previous message, you can start the discussion."
+    else:
+        prompt += "\n\nJust return your answer."
     
     return prompt
 
@@ -251,6 +263,15 @@ with col1:
     }
     text = language_map.get(st.session_state.language, language_map["English"])
     topic = st.text_input(text)
+
+    language_map = {
+        "English": "Supplementary Information",
+        "中文": "补充信息",
+        "日本語": "補足情報",
+        "한국어": "보충 정보"
+    }
+    text = language_map.get(st.session_state.language, language_map["English"])
+    supplementary_information = st.text_area(text)
     language_map = {
         "English": "Discuss Settings",
         "中文": "讨论设置",
@@ -502,7 +523,8 @@ with col2:
             st.session_state.messages.append({"role": "assistant", "content":text, "sender": "helper"})
             with st.chat_message("ai"):
                 st.markdown(text)
-            message = build_message(st.session_state.messages,next_agent,topic,chosen_people_original)
+            message = build_message(st.session_state.messages,next_agent,topic,supplementary_information,chosen_people_original)
+            st.warning(message) # debug
             stream = st.session_state.group.current_agent.get(st.session_state.thread_id).agent.chat(message,stream=True)
             with st.chat_message(next_agent):
                 response = st.write_stream(stream)
@@ -539,7 +561,8 @@ with col2:
             st.session_state.messages.append({"role": "assistant", "content":text, "sender": "helper"})
             with st.chat_message("ai"):
                 st.markdown(text)
-            message = build_message(st.session_state.messages,next_agent,topic,chosen_people_original)
+            message = build_message(st.session_state.messages,next_agent,topic,supplementary_information,chosen_people_original)
+            st.warning(message) # debug
             stream = st.session_state.group.current_agent.get(st.session_state.thread_id,st.session_state.group.entry_agent).agent.chat(message,stream=True)
             with st.chat_message(next_agent):
                 response = st.write_stream(stream)
