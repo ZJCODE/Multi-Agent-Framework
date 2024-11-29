@@ -60,7 +60,7 @@ if "language" not in st.session_state:
     st.session_state.language = "English"
 
 if "recommend_participant" not in st.session_state:
-    st.session_state.recommend_participant = False
+    st.session_state.recommend_participant = True
 
 if "participants_select_mode" not in st.session_state:
     st.session_state.participants_select_mode = True
