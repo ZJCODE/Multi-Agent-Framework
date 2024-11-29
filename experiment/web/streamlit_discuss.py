@@ -297,7 +297,7 @@ with col1:
         "한국어": "주제를 입력하세요"
     }
     text = language_map.get(st.session_state.language, language_map["English"])
-    topic = st.text_input(text)
+    topic = st.text_input(text,disabled=not st.session_state.participants_select_mode)
 
     language_map = {
         "English": "Supplementary Information",
@@ -306,7 +306,7 @@ with col1:
         "한국어": "보충 정보"
     }
     text = language_map.get(st.session_state.language, language_map["English"])
-    supplementary_information = st.text_area(text)
+    supplementary_information = st.text_area(text,disabled=not st.session_state.participants_select_mode)
 
     language_map = {
         "English": "Discuss Settings",
