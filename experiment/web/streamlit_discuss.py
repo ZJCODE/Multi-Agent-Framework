@@ -225,8 +225,9 @@ with st.sidebar:
                     else:
                         st.session_state.more_participants = [] if participants == [''] else participants
                         st.session_state.more_participants_translate = [] if participants_translate == [''] else [x.strip() for x in  participants_translate]
-                        st.warning(st.session_state.more_participants_translate)
-                        st.warning(st.session_state.more_participants)
+                        st.success("Participants added successfully" if st.session_state.language == "English" else "成功添加参与者" if st.session_state.language == "中文" else "参加者が正常に追加されました" if st.session_state.language == "日本語" else "참가자가 성공적으로 추가되었습니다")
+                        # st.warning(st.session_state.more_participants_translate)
+                        # st.warning(st.session_state.more_participants)
         else:
             st.session_state.more_participants = []
             st.session_state.more_participants_translate = []
