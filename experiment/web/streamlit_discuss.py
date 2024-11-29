@@ -524,7 +524,7 @@ with col2:
             with st.chat_message("ai"):
                 st.markdown(text)
             message = build_message(st.session_state.messages,next_agent,topic,supplementary_information,chosen_people_original)
-            st.warning(message) # debug
+            # st.warning(message) # debug
             stream = st.session_state.group.current_agent.get(st.session_state.thread_id).agent.chat(message,stream=True)
             with st.chat_message(next_agent):
                 response = st.write_stream(stream)
@@ -562,7 +562,7 @@ with col2:
             with st.chat_message("ai"):
                 st.markdown(text)
             message = build_message(st.session_state.messages,next_agent,topic,supplementary_information,chosen_people_original)
-            st.warning(message) # debug
+            # st.warning(message) # debug
             stream = st.session_state.group.current_agent.get(st.session_state.thread_id,st.session_state.group.entry_agent).agent.chat(message,stream=True)
             with st.chat_message(next_agent):
                 response = st.write_stream(stream)
