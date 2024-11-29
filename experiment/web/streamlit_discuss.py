@@ -208,6 +208,7 @@ with st.sidebar:
             participants = participants_raw.replace("，", ",").split(",")
             if not st.session_state.api_key and not st.session_state.base_url:
                 st.toast("🚨 Please enter your API Key and Base URL first!")
+                st.warning("Please enter your API Key and Base URL first!")
             else:
                 with st.spinner('Adding participants...' if st.session_state.language == "English" else "添加参与者中..." if st.session_state.language == "中文" else "参加者を追加中..." if st.session_state.language == "日本語" else "참가자 추가 중..."):
                     participants_translate = translate2english(participants_raw,st.session_state.api_key,st.session_state.base_url,st.session_state.model).replace("，", ",").split(",")
