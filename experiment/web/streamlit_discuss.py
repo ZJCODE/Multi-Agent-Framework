@@ -563,92 +563,100 @@ with col2:
                     st.markdown(message["content"])
 
         if st.session_state.start_discussion and st.session_state.group:
-            next_agent = st.session_state.group.current_agent.get(st.session_state.thread_id,st.session_state.group.entry_agent).name
-            if not st.session_state.skip_me and prompt:
-                language_map = {
-                    "English": "User Participated",
-                    "中文": "用户参与",
-                    "日本語": "ユーザーが参加しました",
-                    "한국어": "사용자 참여"
-                }
-                text = language_map.get(st.session_state.language, language_map["English"])
-                st.session_state.messages.append({"role": "assistant", "content":text, "sender": "helper"})
-                st.session_state.messages.append({"role": "user", "content":prompt, "sender": "user"})
-                with st.chat_message("ai"):
-                    st.markdown(text)
-                with st.chat_message("user"):
-                    st.markdown(prompt)
-                # st.warning(build_handoff_message(st.session_state.messages,chosen_people))
-                next_agent = st.session_state.group.handoff(
-                    messages=build_handoff_message(st.session_state.messages,chosen_people),
-                                                model=st.session_state.model,
-                                                handoff_max_turns=1,
-                                                include_current = False,
-                                                next_speaker_select_mode="auto",
-                                                thread_id=st.session_state.thread_id)
-                language_map = {
-                    "English": "Transfer to {}",
-                    "中文": "转接给 {}",
-                    "日本語": "{} に転送",
-                    "한국어": "{} 로 전환"
-                }
-                text = language_map.get(st.session_state.language, language_map["English"]).format(participants_language_reverse_map.get(next_agent.replace("_"," ")).get(st.session_state.language, next_agent.replace("_"," ")))
-                st.session_state.messages.append({"role": "assistant", "content":text, "sender": "helper"})
-                with st.chat_message("ai"):
-                    st.markdown(text)
-                message = build_message(st.session_state.messages,next_agent,topic,supplementary_information,chosen_people_original)
-                # st.warning(message) # debug
-                stream = st.session_state.group.current_agent.get(st.session_state.thread_id).agent.chat(message,stream=True)
-                with st.chat_message(next_agent):
-                    response = st.write_stream(stream)
+            try:
+                next_agent = st.session_state.group.current_agent.get(st.session_state.thread_id,st.session_state.group.entry_agent).name
+                if not st.session_state.skip_me and prompt:
                     language_map = {
-                        "English": "Next Person",
-                        "中文": "下一个人",
-                        "日本語": "次の人",
-                        "한국어": "다음 사람"
+                        "English": "User Participated",
+                        "中文": "用户参与",
+                        "日本語": "ユーザーが参加しました",
+                        "한국어": "사용자 참여"
                     }
                     text = language_map.get(st.session_state.language, language_map["English"])
-                    st.button(label=text,on_click=skip_me, key="next_person")
-                st.session_state.messages.append({"role": "assistant", "content":response, "sender": next_agent})
-                st.session_state.init_discussion = False
-            else:
-                st.session_state.skip_me = False
-                if not st.session_state.init_discussion:
+                    st.session_state.messages.append({"role": "assistant", "content":text, "sender": "helper"})
+                    st.session_state.messages.append({"role": "user", "content":prompt, "sender": "user"})
+                    with st.chat_message("ai"):
+                        st.markdown(text)
+                    with st.chat_message("user"):
+                        st.markdown(prompt)
                     # st.warning(build_handoff_message(st.session_state.messages,chosen_people))
                     next_agent = st.session_state.group.handoff(
                         messages=build_handoff_message(st.session_state.messages,chosen_people),
                                                     model=st.session_state.model,
                                                     handoff_max_turns=1,
                                                     include_current = False,
-                                                    next_speaker_select_mode=talk_order.lower(),
+                                                    next_speaker_select_mode="auto",
                                                     thread_id=st.session_state.thread_id)
-                else:
-                    next_agent = st.session_state.group.entry_agent.name
-                language_map = {
-                    "English": "Transfer to {}",
-                    "中文": "转接给 {}",
-                    "日本語": "{} に転送",
-                    "한국어": "{} 로 전환"
-                }
-                text = language_map.get(st.session_state.language, language_map["English"]).format(participants_language_reverse_map.get(next_agent.replace("_"," ")).get(st.session_state.language, next_agent.replace("_"," ")))
-                st.session_state.messages.append({"role": "assistant", "content":text, "sender": "helper"})
-                with st.chat_message("ai"):
-                    st.markdown(text)
-                message = build_message(st.session_state.messages,next_agent,topic,supplementary_information,chosen_people_original)
-                # st.warning(message) # debug
-                stream = st.session_state.group.current_agent.get(st.session_state.thread_id,st.session_state.group.entry_agent).agent.chat(message,stream=True)
-                with st.chat_message(next_agent):
-                    response = st.write_stream(stream)
                     language_map = {
-                        "English": "Next Person",
-                        "中文": "下一个人",
-                        "日本語": "次の人",
-                        "한국어": "다음 사람"
+                        "English": "Transfer to {}",
+                        "中文": "转接给 {}",
+                        "日本語": "{} に転送",
+                        "한국어": "{} 로 전환"
                     }
-                    text = language_map.get(st.session_state.language, language_map["English"])
-                    st.button(label=text,on_click=skip_me, key="next_person_")
-                st.session_state.messages.append({"role": "assistant", "content":response, "sender": next_agent})
-                st.session_state.init_discussion = False
+                    text = language_map.get(st.session_state.language, language_map["English"]).format(participants_language_reverse_map.get(next_agent.replace("_"," ")).get(st.session_state.language, next_agent.replace("_"," ")))
+                    st.session_state.messages.append({"role": "assistant", "content":text, "sender": "helper"})
+                    with st.chat_message("ai"):
+                        st.markdown(text)
+                    message = build_message(st.session_state.messages,next_agent,topic,supplementary_information,chosen_people_original)
+                    # st.warning(message) # debug
+                    stream = st.session_state.group.current_agent.get(st.session_state.thread_id).agent.chat(message,stream=True)
+                    with st.chat_message(next_agent):
+                        response = st.write_stream(stream)
+                        language_map = {
+                            "English": "Next Person",
+                            "中文": "下一个人",
+                            "日本語": "次の人",
+                            "한국어": "다음 사람"
+                        }
+                        text = language_map.get(st.session_state.language, language_map["English"])
+                        st.button(label=text,on_click=skip_me, key="next_person")
+                    st.session_state.messages.append({"role": "assistant", "content":response, "sender": next_agent})
+                    st.session_state.init_discussion = False
+            except Exception as e:
+                print(e)
+                st.toast("🚨 Some Error Occurred. Please try again.")
+            else:
+                st.session_state.skip_me = False
+                try:
+                    if not st.session_state.init_discussion:
+                        # st.warning(build_handoff_message(st.session_state.messages,chosen_people))
+                        next_agent = st.session_state.group.handoff(
+                            messages=build_handoff_message(st.session_state.messages,chosen_people),
+                                                        model=st.session_state.model,
+                                                        handoff_max_turns=1,
+                                                        include_current = False,
+                                                        next_speaker_select_mode=talk_order.lower(),
+                                                        thread_id=st.session_state.thread_id)
+                    else:
+                        next_agent = st.session_state.group.entry_agent.name
+                    language_map = {
+                        "English": "Transfer to {}",
+                        "中文": "转接给 {}",
+                        "日本語": "{} に転送",
+                        "한국어": "{} 로 전환"
+                    }
+                    text = language_map.get(st.session_state.language, language_map["English"]).format(participants_language_reverse_map.get(next_agent.replace("_"," ")).get(st.session_state.language, next_agent.replace("_"," ")))
+                    st.session_state.messages.append({"role": "assistant", "content":text, "sender": "helper"})
+                    with st.chat_message("ai"):
+                        st.markdown(text)
+                    message = build_message(st.session_state.messages,next_agent,topic,supplementary_information,chosen_people_original)
+                    # st.warning(message) # debug
+                    stream = st.session_state.group.current_agent.get(st.session_state.thread_id,st.session_state.group.entry_agent).agent.chat(message,stream=True)
+                    with st.chat_message(next_agent):
+                        response = st.write_stream(stream)
+                        language_map = {
+                            "English": "Next Person",
+                            "中文": "下一个人",
+                            "日本語": "次の人",
+                            "한국어": "다음 사람"
+                        }
+                        text = language_map.get(st.session_state.language, language_map["English"])
+                        st.button(label=text,on_click=skip_me, key="next_person_")
+                    st.session_state.messages.append({"role": "assistant", "content":response, "sender": next_agent})
+                    st.session_state.init_discussion = False
+                except Exception as e:
+                    print(e)
+                    st.toast("🚨 Some Error Occurred. Please try again.")
         else:
             if not st.session_state.api_key and not st.session_state.base_url:
                 language_map = {
