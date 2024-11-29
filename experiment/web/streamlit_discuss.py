@@ -415,7 +415,7 @@ with col1:
             participants_not_in_options_str = ",".join(participants_not_in_options)
             participants_not_in_options_to_add,participants_not_in_options_to_add_translate = translate2english(participants_not_in_options_str,st.session_state.api_key,st.session_state.base_url,st.session_state.model)
             
-            st.warning("Participants not in options: {} {}".format(",".join(participants_not_in_options_to_add_translate),",".join(participants_not_in_options_to_add)))
+            # st.warning("Participants not in options: {} {}".format(",".join(participants_not_in_options_to_add_translate),",".join(participants_not_in_options_to_add)))
 
             # update participants_language_map
             for i in range(len(participants_not_in_options_to_add)):
