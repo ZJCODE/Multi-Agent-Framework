@@ -3,6 +3,7 @@ from agent import Group, AgentSchema,Agent
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
+import json
 
 # Set the page layout to wide mode
 st.set_page_config(layout="wide",initial_sidebar_state="collapsed")
@@ -94,7 +95,7 @@ def translate2english(text,api_key,base_url,model):
         return response.choices[0].message.content
 
 
-def build_message(messages_history, current_speaker,topic,participants=[],max_message_length=20):
+def build_message(messages_history, current_speaker,topic,participants=[],max_message_length=10):
     current_speaker_message = [message for message in messages_history if message["sender"] == current_speaker]
     other_people_messages = [message for message in messages_history if message["sender"] not in ["helper",current_speaker]]
 
@@ -120,7 +121,7 @@ def build_message(messages_history, current_speaker,topic,participants=[],max_me
 Consider the previous opinions in the discussion. As a {}, it's your turn to speak.""".format(topic,
                 ",".join(participants),
                 "\n\n".join([f"{message['content']}" for message in current_speaker_message]),
-                "\n\n".join([f"\n```{message['sender']}\n{message['content']}\n```" for message in other_people_messages]),
+                "\n\n".join([f"{message['content']}" for message in other_people_messages]),
                 current_speaker)
     
     if current_speaker == 'Moderator':
@@ -129,28 +130,28 @@ Consider the previous opinions in the discussion. As a {}, it's your turn to spe
     return prompt
 
 def build_handoff_message(messages_history,topic,participants=[]):
-    prompt = """# Discussion Topic: {}
-
-### Participants
+    spoken_history_counter = dict(zip(participants,[0]*len(participants)))
+    moderator_messages = [message for message in messages_history if message["sender"] == "Moderator"]
+    messages_filtered = [message for message in messages_history if message["sender"] not in ["helper","Moderator"]]
+    for message in messages_history:
+        if message["sender"] != "helper":
+            spoken_history_counter[message["sender"]] += 1
+    prompt = """### People's Spoken History
 
 {}
 
-### The Order of People Who Have Already Spoken
+### Recent Message
 
 {}
 
-### Last Message
-
-{} said: {}
+{}
 
 ### Task
 
-Take into account all participants and the sequence of individuals who have already spoken. Then, use the most recent message to decide who should speak next.""".format(topic,
-                ",".join(participants),
-                ",".join([f"{message['sender']}" for message in messages_history if message["sender"] not in ["helper"]]),
-                messages_history[-1]["sender"],
-                messages_history[-1]["content"])
-    
+Utilize the latest message and the individuals who have already participated in the conversation to determine the most appropriate person to speak next.""".format(
+                json.dumps(spoken_history_counter,indent=4),
+                moderator_messages[-1]['sender'] +  " said:\n\n " + moderator_messages[-1]['content'] if moderator_messages else "",
+                "\n\n".join([f"\n{message['sender']} said:\n\n {message['content']}\n" for message in messages_filtered[-2:]]) if messages_filtered else "")
     return prompt
 
 # sidebar
@@ -398,7 +399,7 @@ with col1:
                 st.session_state.thread_id = Group._generate_thread_id()
                 st.session_state.participants = [AgentSchema(name=person.replace(" ","_"),
                                             transfer_to_me_description=f"I am a {person}, call me if you have any questions related to {person}.",
-                                            agent=Agent(name=person.replace(" ","_"),description=f"You are a {person},always reply in language {st.session_state.language}",
+                                            agent=Agent(name=person.replace(" ","_"),description=f"You are a {person},reply in short form and always reply in language {st.session_state.language}",
                                                         api_key=st.session_state.api_key,
                                                         base_url=st.session_state.base_url,
                                                         model=st.session_state.model
@@ -478,6 +479,7 @@ with col2:
                 st.markdown(text)
             with st.chat_message("user"):
                 st.markdown(prompt)
+            st.warning(build_handoff_message(st.session_state.messages,topic,chosen_people))
             next_agent = st.session_state.group.handoff(
                 messages=build_handoff_message(st.session_state.messages,topic,chosen_people),
                                             model=st.session_state.model,
@@ -512,6 +514,7 @@ with col2:
         else:
             st.session_state.skip_me = False
             if not st.session_state.init_discussion:
+                st.warning(build_handoff_message(st.session_state.messages,topic,chosen_people))
                 next_agent = st.session_state.group.handoff(
                     messages=build_handoff_message(st.session_state.messages,topic,chosen_people),
                                                 model=st.session_state.model,
