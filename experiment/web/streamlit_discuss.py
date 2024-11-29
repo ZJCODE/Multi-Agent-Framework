@@ -487,7 +487,7 @@ with col1:
             "한국어": "토론 시작"
         }
         text = language_map.get(st.session_state.language, language_map["English"])
-        if st.button(text,on_click=open_participants_select_mode):
+        if st.button(text,on_click=close_participants_select_mode):
             st.session_state.start_discussion = True
             st.toast("🎉 Discussion started.")
             # st.session_state.messages = [{"role": "user", "content": topic, "sender": "user"}]
@@ -519,7 +519,7 @@ with col1:
             "한국어": "토론 정리"
         }
         text = language_map.get(st.session_state.language, language_map["English"])
-        if st.button(text,on_click=close_participants_select_mode):
+        if st.button(text,on_click=open_participants_select_mode):
             st.toast("🎉 Discussion stopped.")
             st.session_state.messages = []
             st.session_state.start_discussion = False
