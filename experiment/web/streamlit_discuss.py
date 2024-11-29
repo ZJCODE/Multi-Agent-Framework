@@ -129,7 +129,8 @@ Consider the previous opinions in the discussion. As a {}, it's your turn to spe
     
     return prompt
 
-def build_handoff_message(messages_history,topic,participants=[]):
+def build_handoff_message(messages_history,participants=[]):
+    participants = [x.replace(" ","_") for x in participants]
     spoken_history_counter = dict(zip(participants,[0]*len(participants)))
     moderator_messages = [message for message in messages_history if message["sender"] == "Moderator"]
     messages_filtered = [message for message in messages_history if message["sender"] not in ["helper","Moderator"]]
@@ -482,9 +483,9 @@ with col2:
                 st.markdown(text)
             with st.chat_message("user"):
                 st.markdown(prompt)
-            st.warning(build_handoff_message(st.session_state.messages,topic,chosen_people))
+            st.warning(build_handoff_message(st.session_state.messages,chosen_people))
             next_agent = st.session_state.group.handoff(
-                messages=build_handoff_message(st.session_state.messages,topic,chosen_people),
+                messages=build_handoff_message(st.session_state.messages,chosen_people),
                                             model=st.session_state.model,
                                             handoff_max_turns=1,
                                             include_current = False,
@@ -517,9 +518,9 @@ with col2:
         else:
             st.session_state.skip_me = False
             if not st.session_state.init_discussion:
-                st.warning(build_handoff_message(st.session_state.messages,topic,chosen_people))
+                st.warning(build_handoff_message(st.session_state.messages,chosen_people))
                 next_agent = st.session_state.group.handoff(
-                    messages=build_handoff_message(st.session_state.messages,topic,chosen_people),
+                    messages=build_handoff_message(st.session_state.messages,chosen_people),
                                                 model=st.session_state.model,
                                                 handoff_max_turns=1,
                                                 include_current = False,
