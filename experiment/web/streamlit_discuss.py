@@ -568,7 +568,7 @@ with col2:
                     "한국어": "사용자 참여"
                 }
                 text = language_map.get(st.session_state.language, language_map["English"])
-                st.session_state.messages.append({"role": "assistant", "content":prompt, "sender": "helper"})
+                st.session_state.messages.append({"role": "assistant", "content":text, "sender": "helper"})
                 st.session_state.messages.append({"role": "user", "content":prompt, "sender": "user"})
                 with st.chat_message("ai"):
                     st.markdown(text)
