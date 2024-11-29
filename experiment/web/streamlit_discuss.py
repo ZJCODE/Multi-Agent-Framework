@@ -148,6 +148,8 @@ def build_handoff_message(messages_history,participants=[]):
     messages_filtered = [message for message in messages_history if message["sender"] not in ["helper","Moderator"]]
     for message in messages_history:
         if message["sender"] not in ["helper","user"]:
+            if message["sender"] not in spoken_history_counter:
+                spoken_history_counter[message["sender"]] = 0
             spoken_history_counter[message["sender"]] += 1
     prompt = """### People's Spoken History
 
