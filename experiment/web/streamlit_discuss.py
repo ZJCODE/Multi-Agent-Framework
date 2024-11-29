@@ -102,7 +102,7 @@ def build_message(messages_history, current_speaker,topic,participants=[],max_me
     current_speaker_message = current_speaker_message[-max_message_length:]
     other_people_messages = other_people_messages[-max_message_length:]
     
-    prompt = """# Discussion on Topic: {}
+    prompt = """# Topic: {}
 
 ### Participants
 
