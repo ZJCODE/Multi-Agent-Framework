@@ -356,7 +356,7 @@ with col1:
         "Urban Planner":{"English":"Urban Planner","中文":"城市规划师","日本語":"都市計画家","한국어":"도시 계획가"},
         "Mechanical Engineer":{"English":"Mechanical Engineer","中文":"机械工程师","日本語":"機械工学者","한국어":"기계공학자"},
         "Electrical Engineer":{"English":"Electrical Engineer","中文":"电气工程师","日本語":"電気工学者","한국어":"전기공학자"},
-        "Executive":{"English":"Executive","中文":"执行","日本語":"役員","한국어":"임원"},
+        "Executive":{"English":"Executive","中文":"企业高管","日本語":"役員","한국어":"임원"},
         "Technical Expert":{"English":"Technical Expert","中文":"技术专家","日本語":"技術専門家","한국어":"기술 전문가"},
         "Marketing Specialist":{"English":"Marketing Specialist","中文":"市场营销专家","日本語":"マーケティングスペシャリスト","한국어":"마케팅 전문가"},
         "Financial Analyst":{"English":"Financial Analyst","中文":"财务分析师","日本語":"財務アナリスト","한국어":"재무 분석가"},
