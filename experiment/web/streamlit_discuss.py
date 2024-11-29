@@ -62,8 +62,14 @@ if "language" not in st.session_state:
 if "auto_recommend_participant" not in st.session_state:
     st.session_state.auto_recommend_participant = False
 
+if "participants_select_mode" not in st.session_state:
+    st.session_state.participants_select_mode = True
+
 def skip_me():
     st.session_state.skip_me = True
+
+def toggle_participants_select_mode():
+    st.session_state.participants_select_mode = not st.session_state.participants_select_mode
 
 def restart_discussion():
     st.session_state.messages = []
@@ -74,33 +80,23 @@ def restart_discussion():
 
 @st.cache_data
 def translate2english(text,api_key,base_url,model):
-        client = OpenAI(api_key=api_key, base_url=base_url)
-        response =  client.chat.completions.create(
-            model=model,
-            messages=[{"role": "system", "content": """
-                       Translate text to English
+    client = OpenAI(api_key=api_key, base_url=base_url)
+    class RawAndTranslateParticipants(BaseModel):
+        participants: list[str]
+        participants_translate_to_en: list[str]
 
-                       ## Example 1
-                        - Input: 编剧
-                        - Output: Screenwriter
-                       ## Example 2
-                        - Input: writer
-                        - Output: Writer 
-                       ## Example 3
-                        - Input: 导演，演员
-                        - Output: Director,Actor
-                       ## Example 4
-                        - Input: 设计师，工程师，医生
-                        - Output: Designer,Engineer,Doctor
+    completion = client.beta.chat.completions.parse(
+        model=model,
+        messages=[
+            {"role": "system", "content": "Translate the following Participants(split by comma) to English"},
+            {"role": "user", "content": "Participants: {}".format(text)}
+        ],
+        response_format=RawAndTranslateParticipants,
+    )
 
-                       ## Task
-                        - Translate the following text to English
-                       """
-                       }] + [{"role": "user", "content": text}],
-            stream=False
-            )
-        return response.choices[0].message.content
+    res = completion.choices[0].message.parsed
 
+    return res.participants, res.participants_translate_to_en
 
 @st.cache_data
 def auto_recommend_participant(topic,supplementary_information,participants,api_key,base_url,model):
@@ -111,8 +107,8 @@ def auto_recommend_participant(topic,supplementary_information,participants,api_
     completion = client.beta.chat.completions.parse(
         model=model,
         messages=[
-            {"role": "system", "content": "Select the three most appropriate participants for the following topic"},
-            {"role": "user", "content": "Topic: {}\n\nSupplementary Information: {}\n\nParticipants: {}".format(topic,supplementary_information,",".join(participants))}
+            {"role": "system", "content": "Choose the four most suitable participants for the given topic. If suitable participants are not available, please create new ones."},
+            {"role": "user", "content": "Topic: {}\n\nSupplementary Information: {}\n\nParticipants: {}\n\n If suitable participants are not available, please create new ones.".format(topic,supplementary_information,",".join(participants))}
         ],
         response_format=AutoParticipant,
     )
@@ -217,10 +213,10 @@ with st.sidebar:
         st.session_state.api_key = os.getenv("OPENAI_API_KEY")
 
     language_map = {
-        "English": "Add more participants (, separated)",
-        "中文": "添加更多参与者（以,分隔）",
-        "日本語": "参加者を追加（, 区切り）",
-        "한국어": "더 많은 참가자 추가(,로 구분)"
+        "English": "Add more participants",
+        "中文": "添加更多参与者",
+        "日本語": "参加者を追加",
+        "한국어": "더 많은 참가자 추가"
     }
     text = language_map.get(st.session_state.language, language_map["English"])
     st.caption(text)
@@ -231,8 +227,7 @@ with st.sidebar:
         "한국어": "디자이너,엔지니어 형식"
     }
     text = language_map.get(st.session_state.language, language_map["English"])
-    participants_raw = st.text_area(placeholder=text,label="More Participants", 
-                                    value=",".join(st.session_state.more_participants),
+    participants_raw = st.text_area(placeholder=text,label="More Participants",
                                     label_visibility="collapsed")
     language_map = {
         "English": "Add",
@@ -243,13 +238,12 @@ with st.sidebar:
     text = language_map.get(st.session_state.language, language_map["English"])
     if st.button(text):
         if participants_raw:
-            participants = participants_raw.replace("，", ",").split(",")
             if not st.session_state.api_key and not st.session_state.base_url:
                 st.toast("🚨 Please enter your API Key and Base URL first!")
                 st.warning("Please enter your API Key and Base URL first!")
             else:
                 with st.spinner('Adding participants...' if st.session_state.language == "English" else "添加参与者中..." if st.session_state.language == "中文" else "参加者を追加中..." if st.session_state.language == "日本語" else "참가자 추가 중..."):
-                    participants_translate = translate2english(participants_raw,st.session_state.api_key,st.session_state.base_url,st.session_state.model).replace("，", ",").split(",")
+                    participants,participants_translate = translate2english(participants_raw,st.session_state.api_key,st.session_state.base_url,st.session_state.model)
                     if len(participants) != len(participants_translate):
                         language_map = {
                             "English": "Please formatted as Designer,Engineer",
@@ -260,11 +254,11 @@ with st.sidebar:
                         text = language_map.get(st.session_state.language, language_map["English"])
                         st.warning(text)
                     else:
-                        st.session_state.more_participants = [] if participants == [''] else participants
-                        st.session_state.more_participants_translate = [] if participants_translate == [''] else [x.strip() for x in  participants_translate]
+                        st.session_state.more_participants = participants
+                        st.session_state.more_participants_translate = participants_translate
                         st.success("Participants added successfully" if st.session_state.language == "English" else "成功添加参与者" if st.session_state.language == "中文" else "参加者が正常に追加されました" if st.session_state.language == "日本語" else "참가자가 성공적으로 추가되었습니다")
-                        # st.warning(st.session_state.more_participants_translate)
-                        # st.warning(st.session_state.more_participants)
+                        st.warning(st.session_state.more_participants_translate)
+                        st.warning(st.session_state.more_participants)
         else:
             st.session_state.more_participants = []
             st.session_state.more_participants_translate = []
@@ -306,13 +300,6 @@ with col1:
     }
     text = language_map.get(st.session_state.language, language_map["English"])
     st.subheader(text)
-    language_map = {
-        "English": "Select participants (multiple options allowed)",
-        "中文": "选择参与的人（允许多个选项）",
-        "日本語": "参加者を選択（複数のオプションが許可されます）",
-        "한국어": "참여자 선택(여러 옵션 허용)"
-    }
-    text = language_map.get(st.session_state.language, language_map["English"])
     participants_options_map = {
         "English": st.session_state.more_participants + ["Moderator","Mathematician","Artist","Historian","Scientist","Writer","Poet","Musician","Philosopher","Sociologist","Psychologist","Educator","Linguist","Anthropologist","Political Scientist","Economist","Environmentalist","Designer","Engineer","Doctor","Nurse","Architect","Programmer","Data Analyst","Nutritionist","Psychotherapist","Pharmacist","Physical Therapist","Environmental Engineer","Urban Planner","Mechanical Engineer","Electrical Engineer","Executive","Technical Expert","Marketing Specialist","Financial Analyst","Human Resources Manager","Legal Advisor","Public Relations Specialist","Customer Representative","Supply Chain Management Specialist","Researcher","Policy Maker","Entrepreneur","Investor","Financial Advisor","Corporate Social Responsibility Specialist"],
         "中文": st.session_state.more_participants + ["主持人","数学家","艺术家","历史学家","科学家","作家","诗人","音乐家","哲学家","社会学家","心理学家","教育家","语言学家","人类学家","政治学家","经济学家","环境学家","设计师","工程师","医生","护士","建筑师","程序员","数据分析师","营养师","心理治疗师","药剂师","物理治疗师","环境工程师","城市规划师","机械工程师","电气工程师","企业高管","技术专家","市场营销专家","财务分析师","人力资源经理","法律顾问","公共关系专家","客户代表","供应链管理专家","研究员","政策制定者","创业者","投资者","金融顾问","社会责任专家"],
@@ -396,9 +383,7 @@ with col1:
             participants_language_reverse_map[st.session_state.more_participants_translate[i]][st.session_state.language] = st.session_state.more_participants[i]
 
     options = participants_options_map.get(st.session_state.language, participants_options_map["English"])
-    default_participant = default_participant_map.get(st.session_state.language, default_participant_map["English"])
-    chosen_people_original= st.multiselect(label=text,options= options,default=default_participant)
-
+    
     if topic:
         recommended_participants = auto_recommend_participant(topic,supplementary_information,options,st.session_state.api_key,st.session_state.base_url,st.session_state.model)
         language_map = {
@@ -407,7 +392,44 @@ with col1:
             "日本語": "おすすめ",
             "한국어": "추천"
         }
-        st.caption("Recommended: {}".format(",".join(recommended_participants)))
+        text = language_map.get(st.session_state.language, language_map["English"])
+        st.caption("{}: {}".format(text,",".join(recommended_participants)))
+
+        participants_not_in_options = [participant for participant in recommended_participants if participant not in options]
+        if participants_not_in_options:
+            participants_not_in_options_str = ",".join(participants_not_in_options)
+            participants_not_in_options_to_add,participants_not_in_options_to_add_translate = translate2english(participants_not_in_options_str,st.session_state.api_key,st.session_state.base_url,st.session_state.model)
+            
+            # st.warning("Participants not in options: {} {}".format(",".join(participants_not_in_options_to_add_translate),",".join(participants_not_in_options_to_add)))
+
+            # update participants_language_map
+            for i in range(len(participants_not_in_options_to_add)):
+                participants_language_map[participants_not_in_options_to_add[i]] = participants_not_in_options_to_add_translate[i]
+        
+            # update participants_language_reverse_map
+            for i in range(len(participants_not_in_options_to_add)):
+                if participants_not_in_options_to_add_translate[i] not in participants_language_reverse_map:
+                    participants_language_reverse_map[participants_not_in_options_to_add_translate[i]] = {st.session_state.language:participants_not_in_options_to_add[i]}
+                else:
+                    participants_language_reverse_map[participants_not_in_options_to_add_translate[i]][st.session_state.language] = participants_not_in_options_to_add[i]
+
+        # remove recommended_participants in options then add recommended_participants in top of options
+        for participant in recommended_participants:
+            if participant in options:
+                options.remove(participant)
+        options = recommended_participants + options
+
+    language_map = {
+        "English": "Select participants (multiple options allowed)",
+        "中文": "选择参与的人（允许多个选项）",
+        "日本語": "参加者を選択（複数のオプションが許可されます）",
+        "한국어": "참여자 선택(여러 옵션 허용)"
+    }
+    text = language_map.get(st.session_state.language, language_map["English"])
+
+    default_participant = default_participant_map.get(st.session_state.language, default_participant_map["English"])
+    chosen_people_original= st.multiselect(label=text,options= options,default=default_participant,disabled=not st.session_state.participants_select_mode)
+
 
     chosen_people = [participants_language_map.get(person,person) for person in chosen_people_original]
 
@@ -445,27 +467,28 @@ with col1:
             "한국어": "토론 시작"
         }
         text = language_map.get(st.session_state.language, language_map["English"])
-        if st.button(text):
+        if st.button(text,on_click=toggle_participants_select_mode):
             st.session_state.start_discussion = True
             st.toast("🎉 Discussion started.")
             # st.session_state.messages = [{"role": "user", "content": topic, "sender": "user"}]
             st.session_state.thread_id = Group._generate_thread_id()
-        st.session_state.participants = [AgentSchema(name=person.replace(" ","_"),
-                                    transfer_to_me_description=f"I am a {person}, call me if you have any questions related to {person}.",
-                                    agent=Agent(name=person.replace(" ","_"),description=f"You are a {person},reply in short form and always reply in language {st.session_state.language}",
-                                                api_key=st.session_state.api_key,
-                                                base_url=st.session_state.base_url,
-                                                model=st.session_state.model
-                                                ),
-                                    as_entry=True if person == "Moderator" else False) 
-                                    for person in chosen_people]
-        if st.session_state.participants:
-            st.session_state.group = Group(participants=st.session_state.participants
-                                            ,api_key=st.session_state.api_key
-                                            ,base_url=st.session_state.base_url,
-                                                model=st.session_state.model)
-        else:
-            st.session_state.group = None
+
+            st.session_state.participants = [AgentSchema(name=person.replace(" ","_"),
+                                        transfer_to_me_description=f"I am a {person}, call me if you have any questions related to {person}.",
+                                        agent=Agent(name=person.replace(" ","_"),description=f"You are a {person},reply in short form and always reply in language {st.session_state.language}",
+                                                    api_key=st.session_state.api_key,
+                                                    base_url=st.session_state.base_url,
+                                                    model=st.session_state.model
+                                                    ),
+                                        as_entry=True if person == "Moderator" else False) 
+                                        for person in chosen_people]
+            if st.session_state.participants:
+                st.session_state.group = Group(participants=st.session_state.participants
+                                                ,api_key=st.session_state.api_key
+                                                ,base_url=st.session_state.base_url,
+                                                    model=st.session_state.model)
+            else:
+                st.session_state.group = None
 
     with c2:
         language_map = {
@@ -475,7 +498,7 @@ with col1:
             "한국어": "토론 정리"
         }
         text = language_map.get(st.session_state.language, language_map["English"])
-        if st.button(text):
+        if st.button(text,on_click=toggle_participants_select_mode):
             st.toast("🎉 Discussion stopped.")
             st.session_state.messages = []
             st.session_state.start_discussion = False
