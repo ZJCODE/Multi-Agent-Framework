@@ -68,8 +68,11 @@ if "participants_select_mode" not in st.session_state:
 def skip_me():
     st.session_state.skip_me = True
 
-def toggle_participants_select_mode():
-    st.session_state.participants_select_mode = not st.session_state.participants_select_mode
+def open_participants_select_mode():
+    st.session_state.participants_select_mode = True
+
+def close_participants_select_mode():
+    st.session_state.participants_select_mode = False
 
 def restart_discussion():
     st.session_state.messages = []
@@ -77,6 +80,7 @@ def restart_discussion():
     st.session_state.init_discussion = True
     st.session_state.more_participants = []
     st.session_state.more_participants_translate = []
+    st.session_state.recommend_participant = True
 
 @st.cache_data
 def translate2english(text,api_key,base_url,model):
@@ -483,7 +487,7 @@ with col1:
             "한국어": "토론 시작"
         }
         text = language_map.get(st.session_state.language, language_map["English"])
-        if st.button(text,on_click=toggle_participants_select_mode):
+        if st.button(text,on_click=open_participants_select_mode):
             st.session_state.start_discussion = True
             st.toast("🎉 Discussion started.")
             # st.session_state.messages = [{"role": "user", "content": topic, "sender": "user"}]
@@ -515,7 +519,7 @@ with col1:
             "한국어": "토론 정리"
         }
         text = language_map.get(st.session_state.language, language_map["English"])
-        if st.button(text,on_click=toggle_participants_select_mode):
+        if st.button(text,on_click=close_participants_select_mode):
             st.toast("🎉 Discussion stopped.")
             st.session_state.messages = []
             st.session_state.start_discussion = False
