@@ -182,7 +182,7 @@ with st.sidebar:
     text = language_map.get(st.session_state.language, language_map["English"])
     st.title(text)
 
-    st.session_state.api_key = st.text_input("API Key",type="password")
+    st.session_state.api_key = st.text_input("OpenAI API Key",type="password")
     st.session_state.base_url = st.text_input("Base URL")
     st.session_state.model = st.selectbox("Model",["gpt-4o-mini","gpt-4o","gpt-4"],index=0)
 
