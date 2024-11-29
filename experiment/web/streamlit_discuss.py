@@ -213,7 +213,23 @@ with st.sidebar:
         st.session_state.api_key = os.getenv("OPENAI_API_KEY")
 
     language_map = {
-        "English": "Add more participants",
+        "English": "Suggest Participants",
+        "中文": "自动推荐参与者",
+        "日本語": "自動的に参加者を推薦",
+        "한국어": "자동으로 참가자 추천"
+    }
+    text = language_map.get(st.session_state.language, language_map["English"])
+    help_language_map = {
+        "English": "Auto recommend participants based on the topic and supplementary information",
+        "中文": "根据话题和补充信息自动推荐参与者",
+        "日本語": "トピックと補足情報に基づいて参加者を自動推薦",
+        "한국어": "주제와 보충 정보에 따라 참가자를 자동으로 추천합니다"
+    }
+    help_text = help_language_map.get(st.session_state.language, help_language_map["English"])
+    st.toggle(text,key="recommend_participant",help=help_text)
+
+    language_map = {
+        "English": "Add More Participants",
         "中文": "添加更多参与者",
         "日本語": "参加者を追加",
         "한국어": "더 많은 참가자 추가"
@@ -263,21 +279,6 @@ with st.sidebar:
             st.session_state.more_participants = []
             st.session_state.more_participants_translate = []
             st.warning("Please input participants")
-    language_map = {
-        "English": "Suggest Participants",
-        "中文": "自动推荐参与者",
-        "日本語": "自動的に参加者を推薦",
-        "한국어": "자동으로 참가자 추천"
-    }
-    text = language_map.get(st.session_state.language, language_map["English"])
-    help_language_map = {
-        "English": "Auto recommend participants based on the topic and supplementary information",
-        "中文": "根据话题和补充信息自动推荐参与者",
-        "日本語": "トピックと補足情報に基づいて参加者を自動推薦",
-        "한국어": "주제와 보충 정보에 따라 참가자를 자동으로 추천합니다"
-    }
-    help_text = help_language_map.get(st.session_state.language, help_language_map["English"])
-    st.toggle(text,key="recommend_participant",help=help_text)
 
 with col1:
 
