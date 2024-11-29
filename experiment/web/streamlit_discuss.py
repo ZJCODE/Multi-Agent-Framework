@@ -306,7 +306,7 @@ with col1:
         "한국어": "보충 정보"
     }
     text = language_map.get(st.session_state.language, language_map["English"])
-    supplementary_information = st.text_area(text,disabled=not st.session_state.participants_select_mode)
+    supplementary_information = st.text_area(text,disabled=not st.session_state.participants_select_mode,height=68)
 
     language_map = {
         "English": "Discuss Settings",
