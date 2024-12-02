@@ -68,6 +68,9 @@ if "next_n_chat" not in st.session_state:
 if "default_participants" not in st.session_state:
     st.session_state.default_participants = []
 
+if "hide_ai_help_message" not in st.session_state:
+    st.session_state.hide_ai_help_message = True
+
 def skip_me():
     st.session_state.skip_me = True
     st.session_state.next_n_chat = 1
@@ -94,10 +97,10 @@ def restart_discussion():
     st.session_state.init_discussion = True
     st.session_state.more_participants = []
     st.session_state.more_participants_translate = []
-    st.session_state.recommend_participant = True
     st.session_state.default_participants = []
     st.session_state.next_n_chat = 1
     st.session_state.participants_select_mode = True
+    st.session_state.hide_ai_help_message = True
 
 @st.cache_data
 def translate2english(text,api_key,base_url,model):
@@ -241,6 +244,16 @@ with st.sidebar:
     }
     text = language_map.get(st.session_state.language, language_map["English"])
     st.caption(text)
+
+    language_map = {
+        "English": "Hide Transfer Message",
+        "中文": " 隐藏转移消息",
+        "日本語": "転送メッセージを非表示",
+        "한국어": "전송 메시지 숨기기"
+    }
+    text = language_map.get(st.session_state.language, language_map["English"])
+    st.toggle(text,key="hide_ai_help_message") 
+
     language_map = {
         "English": "Formatted as Designer,Engineer",
         "中文": "格式为 设计师,工程师",
@@ -374,6 +387,8 @@ with col1:
         participants_language_map[st.session_state.more_participants[i]] = st.session_state.more_participants_translate[i]
 
     participants_language_reverse_map = {
+        "user":{"English":"user","中文":"user","日本語":"user","한국어":"user"},
+        "helper":{"English":"Helper","中文":"助手","日本語":"ヘルパー","한국어":"도우미"},
         "Moderator":{"English":"Moderator","中文":"主持人","日本語":"モデレーター","한국어":"모더레이터"},
         "Mathematician":{"English":"Mathematician","中文":"数学家","日本語":"数学者","한국어":"수학자"},
         "Artist":{"English":"Artist","中文":"艺术家","日本語":"アーティスト","한국어":"예술가"},
@@ -469,10 +484,10 @@ with col1:
         }
         text = language_map.get(st.session_state.language, language_map["English"])
         help_language_map = {
-            "English": "Automatically recommended participants based on the topic, can be closed in the sidebar",
-            "中文": "根据话题自动推荐的参与者，可以在侧边栏中关闭",
-            "日本語": "トピックに基づいて自動的に推奨された参加者、サイドバーで閉じることができます",
-            "한국어": "주제에 따라 자동으로 추천된 참가자, 사이드바에서 닫을 수 있습니다"
+            "English": "Automatically recommended participants based on the topic, manually add more in the sidebar if no suitable participants",
+            "中文": "根据话题自动推荐的参与者，没有合适的参与者时可在侧边栏手动添加更多",
+            "日本語": "トピックに基づいて自動的に推奨される参加者、適切な参加者がいない場合はサイドバーで手動で追加してください",
+            "한국어": "주제에 따라 자동으로 추천된 참가자, 적합한 참가자가 없으면 사이드바에서 수동으로 추가하세요."
         }
         help_text = help_language_map.get(st.session_state.language, help_language_map["English"])
         if len(st.session_state.recommended_participants) > 0:
@@ -562,7 +577,7 @@ with col1:
 
             st.session_state.participants = [AgentSchema(name=person.replace(" ","_"),
                                         transfer_to_me_description=f"I am a {person}, call me if you have any questions related to {person}.",
-                                        agent=Agent(name=person.replace(" ","_"),description=f"You are a {person},respond briefly in a casual tone and always reply in language {st.session_state.language},just retrun the answer",
+                                        agent=Agent(name=person.replace(" ","_"),description=f"You are {person} and possess all the skills and knowledge of {person}. Respond as {person} would, keeping your answers brief and clear, using the language of {st.session_state.language}. Provide only the answer;",
                                                     api_key=st.session_state.api_key,
                                                     base_url=st.session_state.base_url,
                                                     model=st.session_state.model
@@ -624,10 +639,12 @@ with col2:
     with st.container(height=600):
         for index,message in enumerate(st.session_state.messages):
             if "sender" in message and message["sender"] == "helper":
-                with st.chat_message("ai"):
-                    st.markdown(message["content"].split(",")[0])
+                if not st.session_state.hide_ai_help_message:
+                    with st.chat_message("ai"):
+                        st.markdown(message["content"].split(",")[0])
             else:
-                with st.chat_message(message["sender"] if "sender" in message else message["role"]):
+                name = message["sender"] if "sender" in message else message["role"]
+                with st.chat_message(participants_language_reverse_map.get(name.replace("_"," ")).get(st.session_state.language, name.replace("_"," "))):
                     st.markdown(message["content"])
 
         if st.session_state.start_discussion and st.session_state.group:
@@ -642,8 +659,9 @@ with col2:
                 text = language_map.get(st.session_state.language, language_map["English"])
                 st.session_state.messages.append({"role": "assistant", "content":text, "sender": "helper"})
                 st.session_state.messages.append({"role": "user", "content":prompt, "sender": "user"})
-                with st.chat_message("ai"):
-                    st.markdown(text)
+                if not st.session_state.hide_ai_help_message:
+                    with st.chat_message("ai"):
+                        st.markdown(text)
                 with st.chat_message("user"):
                     st.markdown(prompt)
                 # st.warning(build_handoff_message(st.session_state.messages,chosen_people))
@@ -662,12 +680,14 @@ with col2:
                 }
                 text = language_map.get(st.session_state.language, language_map["English"]).format(participants_language_reverse_map.get(next_agent.replace("_"," ")).get(st.session_state.language, next_agent.replace("_"," ")))
                 st.session_state.messages.append({"role": "assistant", "content":text, "sender": "helper"})
-                with st.chat_message("ai"):
-                    st.markdown(text)
+                if not st.session_state.hide_ai_help_message:
+                    with st.chat_message("ai"):
+                        st.markdown(text)
                 message = build_message(st.session_state.messages,next_agent,topic,supplementary_information,chosen_people_original)
                 # st.warning(message) # debug
                 stream = st.session_state.group.current_agent.get(st.session_state.thread_id).agent.chat(message,stream=True)
-                with st.chat_message(next_agent):
+                # with st.chat_message(next_agent):
+                with st.chat_message(participants_language_reverse_map.get(next_agent.replace("_"," ")).get(st.session_state.language, next_agent.replace("_"," "))):
                     response = st.write_stream(stream)
                     language_map = {
                         "English": "Next",
@@ -722,12 +742,14 @@ with col2:
                     }
                     text = language_map.get(st.session_state.language, language_map["English"]).format(participants_language_reverse_map.get(next_agent.replace("_"," ")).get(st.session_state.language, next_agent.replace("_"," ")))
                     st.session_state.messages.append({"role": "assistant", "content":text, "sender": "helper"})
-                    with st.chat_message("ai"):
-                        st.markdown(text)
+                    if not st.session_state.hide_ai_help_message:
+                        with st.chat_message("ai"):
+                            st.markdown(text)
                     message = build_message(st.session_state.messages,next_agent,topic,supplementary_information,chosen_people_original)
                     # st.warning(message) # debug
                     stream = st.session_state.group.current_agent.get(st.session_state.thread_id,st.session_state.group.entry_agent).agent.chat(message,stream=True)
-                    with st.chat_message(next_agent):
+                    # with st.chat_message(next_agent):
+                    with st.chat_message(participants_language_reverse_map.get(next_agent.replace("_"," ")).get(st.session_state.language, next_agent.replace("_"," "))):
                         response = st.write_stream(stream)                                
                     st.session_state.messages.append({"role": "assistant", "content":response, "sender": next_agent})
                     st.session_state.init_discussion = False
