@@ -103,7 +103,7 @@ def translate2english(text,api_key,base_url,model):
     return res.participants, res.participants_translate_to_en
 
 @st.cache_data
-def auto_recommend_participant(topic,supplementary_information,participants,api_key,base_url,model):
+def auto_recommend_participant(topic,participants,api_key,base_url,model):
     client = OpenAI(api_key=api_key, base_url=base_url)
     class AutoParticipant(BaseModel):
         participants: list[str]
@@ -112,7 +112,7 @@ def auto_recommend_participant(topic,supplementary_information,participants,api_
         model=model,
         messages=[
             {"role": "system", "content": "Choose the four most suitable participants for the given topic. If suitable participants are not available, please create new ones."},
-            {"role": "user", "content": "Topic: {}\n\nSupplementary Information: {}\n\nParticipants: {}\n\n If suitable participants are not available, please create new ones.".format(topic,supplementary_information,",".join(participants))}
+            {"role": "user", "content": "Topic: {}\n\nParticipants: {}\n\n If suitable participants are not available, please create new ones.".format(topic,",".join(participants))}
         ],
         response_format=AutoParticipant,
     )
@@ -406,7 +406,7 @@ with col1:
     
     if topic and st.session_state.recommend_participant:
         try:
-            recommended_participants = auto_recommend_participant(topic,supplementary_information,options,st.session_state.api_key,st.session_state.base_url,st.session_state.model)
+            recommended_participants = auto_recommend_participant(topic,options,st.session_state.api_key,st.session_state.base_url,st.session_state.model)
             language_map = {
             "English": "Recommended",
             "中文": "推荐",
