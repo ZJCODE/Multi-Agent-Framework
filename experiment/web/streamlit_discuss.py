@@ -97,6 +97,7 @@ def restart_discussion():
     st.session_state.recommend_participant = True
     st.session_state.default_participants = []
     st.session_state.next_n_chat = 1
+    st.session_state.participants_select_mode = True
 
 @st.cache_data
 def translate2english(text,api_key,base_url,model):
@@ -119,7 +120,8 @@ def translate2english(text,api_key,base_url,model):
     return res.participants, res.participants_translate_to_en
 
 @st.cache_data
-def auto_recommend_participant(topic,participants,api_key,base_url,model):
+def auto_recommend_participant(topic,supplementary_information,
+                               participants,api_key,base_url,model):
     client = OpenAI(api_key=api_key, base_url=base_url)
     class AutoParticipant(BaseModel):
         participants: list[str]
@@ -127,8 +129,8 @@ def auto_recommend_participant(topic,participants,api_key,base_url,model):
     completion = client.beta.chat.completions.parse(
         model=model,
         messages=[
-            {"role": "system", "content": "Choose the four most suitable participants for the given topic. If suitable participants are not available, please create new ones.Includ a Moderator if neccessary."},
-            {"role": "user", "content": "Topic: {}\n\nParticipants: {}\n\n If suitable participants are not available, please create new ones.".format(topic,",".join(participants))}
+            {"role": "system", "content": "Choose 2 to 5 most suitable participants for the given topic. If suitable participants are not available, please create new ones.Includ a Moderator if neccessary."},
+            {"role": "user", "content": "Topic: {}\n\nSupplementary Information: {}\n\nParticipants: {}\n\n If suitable participants are not available, please create new ones.".format(topic,supplementary_information,",".join(participants))}
         ],
         response_format=AutoParticipant,
     )
@@ -444,7 +446,7 @@ with col1:
     if st.button(label=text,help="Auto recommend participants based on the topic"):
         try:
             with st.spinner('Recommending participants...' if st.session_state.language == "English" else '推荐参与者中...' if st.session_state.language == "中文" else '参加者を推薦中...' if st.session_state.language == "日本語" else '참가자 추천 중...'):
-                st.session_state.recommended_participants = auto_recommend_participant(topic,options,st.session_state.api_key,st.session_state.base_url,st.session_state.model)
+                st.session_state.recommended_participants = auto_recommend_participant(topic,supplementary_information,options,st.session_state.api_key,st.session_state.base_url,st.session_state.model)
                 st.session_state.default_participants = st.session_state.recommended_participants
         except:
             language_map = {
