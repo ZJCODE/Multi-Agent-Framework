@@ -11,9 +11,6 @@ st.set_page_config(layout="wide",initial_sidebar_state="collapsed")
 
 load_dotenv()
 
-# Create two columns
-col1, col2 = st.columns([1,3],gap="large")
-
 if "start_discussion" not in st.session_state:
     st.session_state.start_discussion = False
 if "skip_me" not in st.session_state:
@@ -59,14 +56,17 @@ if "more_participants_translate" not in st.session_state:
 if "language" not in st.session_state:
     st.session_state.language = "English"
 
-if "recommend_participant" not in st.session_state:
-    st.session_state.recommend_participant = True
+if "recommended_participants" not in st.session_state:
+    st.session_state.recommended_participants = []
 
 if "participants_select_mode" not in st.session_state:
     st.session_state.participants_select_mode = True
 
 if "next_n_chat" not in st.session_state:
     st.session_state.next_n_chat = 1
+
+if "default_participants" not in st.session_state:
+    st.session_state.default_participants = []
 
 def skip_me():
     st.session_state.skip_me = True
@@ -95,6 +95,8 @@ def restart_discussion():
     st.session_state.more_participants = []
     st.session_state.more_participants_translate = []
     st.session_state.recommend_participant = True
+    st.session_state.default_participants = []
+    st.session_state.next_n_chat = 1
 
 @st.cache_data
 def translate2english(text,api_key,base_url,model):
@@ -125,7 +127,7 @@ def auto_recommend_participant(topic,participants,api_key,base_url,model):
     completion = client.beta.chat.completions.parse(
         model=model,
         messages=[
-            {"role": "system", "content": "Choose the four most suitable participants for the given topic. If suitable participants are not available, please create new ones."},
+            {"role": "system", "content": "Choose the four most suitable participants for the given topic. If suitable participants are not available, please create new ones.Includ a Moderator if neccessary."},
             {"role": "user", "content": "Topic: {}\n\nParticipants: {}\n\n If suitable participants are not available, please create new ones.".format(topic,",".join(participants))}
         ],
         response_format=AutoParticipant,
@@ -218,7 +220,6 @@ with st.sidebar:
     }
     text = language_map.get(st.session_state.language, language_map["English"])
     st.title(text)
-
     st.session_state.api_key = st.text_input("OpenAI API Key",type="password")
     st.session_state.base_url = st.text_input("Base URL")
     st.session_state.model = st.selectbox("Model",["gpt-4o-mini","gpt-4o","gpt-4"],index=0)
@@ -229,22 +230,6 @@ with st.sidebar:
     if not st.session_state.base_url and not st.session_state.api_key:
         st.session_state.base_url = os.getenv("OPENAI_BASE_URL")
         st.session_state.api_key = os.getenv("OPENAI_API_KEY")
-
-    language_map = {
-        "English": "Suggest Participants",
-        "中文": "自动推荐参与者",
-        "日本語": "自動的に参加者を推薦",
-        "한국어": "자동으로 참가자 추천"
-    }
-    text = language_map.get(st.session_state.language, language_map["English"])
-    help_language_map = {
-        "English": "Auto recommend participants based on the topic",
-        "中文": "根据话题自动推荐参与者",
-        "日本語": "トピックに基づいて参加者を自動的に推薦します",
-        "한국어": "주제에 따라 참가자를 자동으로 추천합니다"
-        }
-    help_text = help_language_map.get(st.session_state.language, help_language_map["English"])
-    st.toggle(text,key="recommend_participant",help=help_text)
 
     language_map = {
         "English": "Add More Participants",
@@ -298,6 +283,19 @@ with st.sidebar:
             st.session_state.more_participants_translate = []
             st.warning("Please input participants")
 
+
+language_map = {
+    "English": "Welcome to this group chat environment where you can engage in conversations with several participants or observe their interactions. Begin this experience by suggesting a topic.",
+    "中文": "欢迎来到这个群聊环境，在这里您可以与多个参与者进行对话或观察他们的互动。通过提出一个话题来开始这个体验。",
+    "日本語": "このグループチャット環境では、複数の参加者と会話を楽しむか、彼らの相互作用を観察することができます。この体験を始めるには、トピックを提案してください。",
+    "한국어": "이 그룹 채팅 환경에서 여러 참가자와 대화하거나 그들의 상호 작용을 관찰할 수 있습니다. 주제를 제안하여 이 경험을 시작하십시오."
+}
+text = language_map.get(st.session_state.language, language_map["English"])
+st.caption(text)
+
+# Create two columns
+col1, col2 = st.columns([1,3],gap="large")
+
 with col1:
 
     language_map = {
@@ -315,7 +313,16 @@ with col1:
         "한국어": "주제를 입력하세요"
     }
     text = language_map.get(st.session_state.language, language_map["English"])
-    topic = st.text_input(text,disabled=not st.session_state.participants_select_mode)
+
+    help_language_map = {
+        "English": "Topic examples:'What is Beauty?','What is the meaning of life?','How to make a cake?'",
+        "中文": "话题示例：'什么是美？'，'生活的意义是什么？'，'如何做蛋糕？'",
+        "日本語": "トピックの例：「美とは何ですか？」、「人生の意味は何ですか？」、「ケーキを作る方法」",
+        "한국어": "주제 예시: '뷰티란 무엇인가요?','인생의 의미는 무엇인가요?','케이크를 만드는 방법'"
+    }
+    help_text = help_language_map.get(st.session_state.language, language_map["English"])
+
+    topic = st.text_input(text,disabled=not st.session_state.participants_select_mode,help=help_text)
 
     language_map = {
         "English": "Supplementary Information",
@@ -425,25 +432,20 @@ with col1:
 
     options = participants_options_map.get(st.session_state.language, participants_options_map["English"])
     
-    if topic and st.session_state.recommend_participant:
+    language_map = {
+        "English": "Auto Recommend Participants",
+        "中文": "自动推荐参与者",
+        "日本語": "自動的に参加者を推薦",
+        "한국어": "자동으로 참가자 추천"
+    }
+    text = language_map.get(st.session_state.language, language_map["English"])
+
+    
+    if st.button(label=text,help="Auto recommend participants based on the topic"):
         try:
             with st.spinner('Recommending participants...' if st.session_state.language == "English" else '推荐参与者中...' if st.session_state.language == "中文" else '参加者を推薦中...' if st.session_state.language == "日本語" else '참가자 추천 중...'):
-                recommended_participants = auto_recommend_participant(topic,options,st.session_state.api_key,st.session_state.base_url,st.session_state.model)
-                language_map = {
-                "English": "Recommended",
-                "中文": "推荐",
-                "日本語": "おすすめ",
-                "한국어": "추천"
-                }
-                text = language_map.get(st.session_state.language, language_map["English"])
-                help_language_map = {
-                    "English": "Automatically recommended participants based on the topic, can be closed in the sidebar",
-                    "中文": "根据话题自动推荐的参与者，可以在侧边栏中关闭",
-                    "日本語": "トピックに基づいて自動的に推奨された参加者、サイドバーで閉じることができます",
-                    "한국어": "주제에 따라 자동으로 추천된 참가자, 사이드바에서 닫을 수 있습니다"
-                }
-                help_text = help_language_map.get(st.session_state.language, help_language_map["English"])
-                st.caption("{}: {}".format(text,",".join(recommended_participants)),help=help_text)
+                st.session_state.recommended_participants = auto_recommend_participant(topic,options,st.session_state.api_key,st.session_state.base_url,st.session_state.model)
+                st.session_state.default_participants = st.session_state.recommended_participants
         except:
             language_map = {
                 "English": "🚨 Please make sure you have entered the OpenAI API Key.",
@@ -453,10 +455,28 @@ with col1:
             }
             text = language_map.get(st.session_state.language, language_map["English"])
             st.toast(text)
-            recommended_participants = []
 
 
-        participants_not_in_options = [participant for participant in recommended_participants if participant not in options]
+    if topic:
+
+        language_map = {
+        "English": "Recommended",
+        "中文": "推荐",
+        "日本語": "おすすめ",
+        "한국어": "추천"
+        }
+        text = language_map.get(st.session_state.language, language_map["English"])
+        help_language_map = {
+            "English": "Automatically recommended participants based on the topic, can be closed in the sidebar",
+            "中文": "根据话题自动推荐的参与者，可以在侧边栏中关闭",
+            "日本語": "トピックに基づいて自動的に推奨された参加者、サイドバーで閉じることができます",
+            "한국어": "주제에 따라 자동으로 추천된 참가자, 사이드바에서 닫을 수 있습니다"
+        }
+        help_text = help_language_map.get(st.session_state.language, help_language_map["English"])
+        if len(st.session_state.recommended_participants) > 0:
+            st.caption("{}: {}".format(text,",".join(st.session_state.recommended_participants)),help=help_text)
+
+        participants_not_in_options = [participant for participant in st.session_state.recommended_participants if participant not in options]
         if participants_not_in_options:
             participants_not_in_options_str = ",".join(participants_not_in_options)
             participants_not_in_options_to_add,participants_not_in_options_to_add_translate = translate2english(participants_not_in_options_str,st.session_state.api_key,st.session_state.base_url,st.session_state.model)
@@ -475,10 +495,10 @@ with col1:
                     participants_language_reverse_map[participants_not_in_options_to_add_translate[i]][st.session_state.language] = participants_not_in_options_to_add[i]
 
         # remove recommended_participants in options then add recommended_participants in top of options
-        for participant in recommended_participants:
+        for participant in st.session_state.recommended_participants:
             if participant in options:
                 options.remove(participant)
-        options = recommended_participants + options
+        options = st.session_state.recommended_participants + options
 
     language_map = {
         "English": "Select participants (multiple options allowed)",
@@ -489,8 +509,9 @@ with col1:
     text = language_map.get(st.session_state.language, language_map["English"])
 
     default_participant = default_participant_map.get(st.session_state.language, default_participant_map["English"])
+    if st.session_state.default_participants:
+        default_participant = st.session_state.default_participants
     chosen_people_original= st.multiselect(label=text,options= options,default=default_participant,disabled=not st.session_state.participants_select_mode)
-
 
     chosen_people = [participants_language_map.get(person,person) for person in chosen_people_original]
 
@@ -652,8 +673,29 @@ with col2:
                         "日本語": "次",
                         "한국어": "다음"
                     }
+                    next_3_language_map = {
+                        "English": "Next 3",
+                        "中文": "下三个",
+                        "日本語": "次の3",
+                        "한국어": "다음 3개"
+                    }
+                    next_5_language_map = {
+                        "English": "Next 5",
+                        "中文": "下五个",
+                        "日本語": "次の5つ",
+                        "한국어": "다음 5개"
+                    }
+                    
                     text = language_map.get(st.session_state.language, language_map["English"])
-                    st.button(label=text,on_click=skip_me, key="next_person")
+                    text_3 = next_3_language_map.get(st.session_state.language, next_3_language_map["English"])
+                    text_5 = next_5_language_map.get(st.session_state.language, next_5_language_map["English"])
+                    _,next_c1,next_c2,next_c3,_ = st.columns([2,1,1,1,2])
+                    with next_c1:
+                        st.button(label=text,on_click=skip_me, key="next_person")
+                    with next_c2:
+                        st.button(label=text_3,on_click=next_3_chat, key="next_3")
+                    with next_c3:
+                        st.button(label=text_5,on_click=next_5_chat, key="next_5")
                 st.session_state.messages.append({"role": "assistant", "content":response, "sender": next_agent})
                 st.session_state.init_discussion = False
             else:
@@ -696,13 +738,13 @@ with col2:
                 }
                 next_3_language_map = {
                     "English": "Next 3",
-                    "中文": "下3个",
+                    "中文": "下三个",
                     "日本語": "次の3",
                     "한국어": "다음 3개"
                 }
                 next_5_language_map = {
                     "English": "Next 5",
-                    "中文": "下5个",
+                    "中文": "下五个",
                     "日本語": "次の5つ",
                     "한국어": "다음 5개"
                 }
@@ -714,9 +756,9 @@ with col2:
                 with next_c1:
                     st.button(label=text,on_click=skip_me, key="next_person_")
                 with next_c2:
-                    st.button(label=text_3,on_click=next_3_chat, key="next_3")
+                    st.button(label=text_3,on_click=next_3_chat, key="next_3_")
                 with next_c3:
-                    st.button(label=text_5,on_click=next_5_chat, key="next_5")
+                    st.button(label=text_5,on_click=next_5_chat, key="next_5_")
         else:
             if not st.session_state.api_key and not st.session_state.base_url:
                 language_map = {
