@@ -405,7 +405,18 @@ with col1:
     options = participants_options_map.get(st.session_state.language, participants_options_map["English"])
     
     if topic and st.session_state.recommend_participant:
-        recommended_participants = auto_recommend_participant(topic,supplementary_information,options,st.session_state.api_key,st.session_state.base_url,st.session_state.model)
+        try:
+            recommended_participants = auto_recommend_participant(topic,supplementary_information,options,st.session_state.api_key,st.session_state.base_url,st.session_state.model)
+        except:
+            language_map = {
+                "English": "🚨 Please make sure you have entered the OpenAI API Key."
+                "中文": "🚨 请确保您已经输入OpenAI API Key",
+                "日本語": "🚨 OpenAI APIキーを入力していることを確認してください"
+                "한국어": "🚨 OpenAI API 키를 입력했는지 확인하세요"
+            }
+            text = language_map.get(st.session_state.language, language_map["English"])
+            st.toast(text)
+            recommended_participants = []
         language_map = {
             "English": "Recommended",
             "中文": "推荐",
