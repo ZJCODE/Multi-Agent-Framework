@@ -65,8 +65,22 @@ if "recommend_participant" not in st.session_state:
 if "participants_select_mode" not in st.session_state:
     st.session_state.participants_select_mode = True
 
+if "next_n_chat" not in st.session_state:
+    st.session_state.next_n_chat = 1
+
 def skip_me():
     st.session_state.skip_me = True
+    st.session_state.next_n_chat = 1
+
+
+def next_3_chat():
+    st.session_state.skip_me = True
+    st.session_state.next_n_chat = 3
+
+def next_5_chat():
+    st.session_state.skip_me = True
+    st.session_state.next_n_chat = 5
+
 
 def open_participants_select_mode():
     st.session_state.participants_select_mode = True
@@ -197,10 +211,10 @@ Utilize the latest message and the individuals who have already participated in 
 with st.sidebar:
     st.session_state.language = st.radio("Language",["English","中文","日本語","한국어"],index=0,on_change=restart_discussion)
     language_map = {
-        "English": "Roundtable Discussion",
-        "中文": "圆桌讨论",
-        "日本語": "円卓会議",
-        "한국어": "원탁 토론"
+        "English": "Group Chat",
+        "中文": "群组聊天",
+        "日本語": "グループチャット",
+        "한국어": "그룹 채팅"
     }
     text = language_map.get(st.session_state.language, language_map["English"])
     st.title(text)
@@ -224,11 +238,11 @@ with st.sidebar:
     }
     text = language_map.get(st.session_state.language, language_map["English"])
     help_language_map = {
-        "English": "Auto recommend participants based on the topic and supplementary information",
-        "中文": "根据话题和补充信息自动推荐参与者",
-        "日本語": "トピックと補足情報に基づいて参加者を自動推薦",
-        "한국어": "주제와 보충 정보에 따라 참가자를 자동으로 추천합니다"
-    }
+        "English": "Auto recommend participants based on the topic",
+        "中文": "根据话题自动推荐参与者",
+        "日本語": "トピックに基づいて参加者を自動的に推薦します",
+        "한국어": "주제에 따라 참가자를 자동으로 추천합니다"
+        }
     help_text = help_language_map.get(st.session_state.language, help_language_map["English"])
     st.toggle(text,key="recommend_participant",help=help_text)
 
@@ -309,8 +323,15 @@ with col1:
         "日本語": "補足情報",
         "한국어": "보충 정보"
     }
+    placeholder_language_map = {
+        "English": "You can provide additional information here for this chat",
+        "中文": "您可以在此处为此聊天提供额外信息",
+        "日本語": "このチャットの追加情報をここに入力できます",
+        "한국어": "이 채팅에 대한 추가 정보를 여기에 제공할 수 있습니다"
+    }
     text = language_map.get(st.session_state.language, language_map["English"])
-    supplementary_information = st.text_area(text,disabled=not st.session_state.participants_select_mode,height=68)
+    placeholder_text = placeholder_language_map.get(st.session_state.language, placeholder_language_map["English"])
+    supplementary_information = st.text_area(text,placeholder=placeholder_text,disabled=not st.session_state.participants_select_mode,height=80)
 
     language_map = {
         "English": "Discuss Settings",
@@ -406,15 +427,23 @@ with col1:
     
     if topic and st.session_state.recommend_participant:
         try:
-            recommended_participants = auto_recommend_participant(topic,options,st.session_state.api_key,st.session_state.base_url,st.session_state.model)
-            language_map = {
-            "English": "Recommended",
-            "中文": "推荐",
-            "日本語": "おすすめ",
-            "한국어": "추천"
-            }
-            text = language_map.get(st.session_state.language, language_map["English"])
-            st.caption("{}: {}".format(text,",".join(recommended_participants)))
+            with st.spinner('Recommending participants...' if st.session_state.language == "English" else '推荐参与者中...' if st.session_state.language == "中文" else '参加者を推薦中...' if st.session_state.language == "日本語" else '참가자 추천 중...'):
+                recommended_participants = auto_recommend_participant(topic,options,st.session_state.api_key,st.session_state.base_url,st.session_state.model)
+                language_map = {
+                "English": "Recommended",
+                "中文": "推荐",
+                "日本語": "おすすめ",
+                "한국어": "추천"
+                }
+                text = language_map.get(st.session_state.language, language_map["English"])
+                help_language_map = {
+                    "English": "Automatically recommended participants based on the topic, can be closed in the sidebar",
+                    "中文": "根据话题自动推荐的参与者，可以在侧边栏中关闭",
+                    "日本語": "トピックに基づいて自動的に推奨された参加者、サイドバーで閉じることができます",
+                    "한국어": "주제에 따라 자동으로 추천된 참가자, 사이드바에서 닫을 수 있습니다"
+                }
+                help_text = help_language_map.get(st.session_state.language, help_language_map["English"])
+                st.caption("{}: {}".format(text,",".join(recommended_participants)),help=help_text)
         except:
             language_map = {
                 "English": "🚨 Please make sure you have entered the OpenAI API Key.",
@@ -507,7 +536,7 @@ with col1:
 
             st.session_state.participants = [AgentSchema(name=person.replace(" ","_"),
                                         transfer_to_me_description=f"I am a {person}, call me if you have any questions related to {person}.",
-                                        agent=Agent(name=person.replace(" ","_"),description=f"You are a {person},reply in short form and always reply in language {st.session_state.language}",
+                                        agent=Agent(name=person.replace(" ","_"),description=f"You are a {person},respond briefly in a casual tone and always reply in language {st.session_state.language},just retrun the answer",
                                                     api_key=st.session_state.api_key,
                                                     base_url=st.session_state.base_url,
                                                     model=st.session_state.model
@@ -536,6 +565,7 @@ with col1:
             st.session_state.messages = []
             st.session_state.start_discussion = False
             st.session_state.init_discussion = True
+            st.session_state.next_n_chat = 1
             st.rerun()
     language_map = {
         "English": "You can speak at any time",
@@ -614,53 +644,76 @@ with col2:
                 with st.chat_message(next_agent):
                     response = st.write_stream(stream)
                     language_map = {
-                        "English": "Next Person",
-                        "中文": "下一个人",
-                        "日本語": "次の人",
-                        "한국어": "다음 사람"
+                        "English": "Next",
+                        "中文": "下一个",
+                        "日本語": "次",
+                        "한국어": "다음"
                     }
                     text = language_map.get(st.session_state.language, language_map["English"])
                     st.button(label=text,on_click=skip_me, key="next_person")
                 st.session_state.messages.append({"role": "assistant", "content":response, "sender": next_agent})
                 st.session_state.init_discussion = False
             else:
-                st.session_state.skip_me = False
-                if not st.session_state.init_discussion:
-                    # st.warning(build_handoff_message(st.session_state.messages,chosen_people))
-                    next_agent = st.session_state.group.handoff(
-                        messages=build_handoff_message(st.session_state.messages,chosen_people),
-                                                    model=st.session_state.model,
-                                                    handoff_max_turns=1,
-                                                    include_current = False,
-                                                    next_speaker_select_mode=talk_order.lower(),
-                                                    thread_id=st.session_state.thread_id)
-                else:
-                    next_agent = st.session_state.group.entry_agent.name
-                language_map = {
-                    "English": "Transfer to {}",
-                    "中文": "转接给 {}",
-                    "日本語": "{} に転送",
-                    "한국어": "{} 로 전환"
-                }
-                text = language_map.get(st.session_state.language, language_map["English"]).format(participants_language_reverse_map.get(next_agent.replace("_"," ")).get(st.session_state.language, next_agent.replace("_"," ")))
-                st.session_state.messages.append({"role": "assistant", "content":text, "sender": "helper"})
-                with st.chat_message("ai"):
-                    st.markdown(text)
-                message = build_message(st.session_state.messages,next_agent,topic,supplementary_information,chosen_people_original)
-                # st.warning(message) # debug
-                stream = st.session_state.group.current_agent.get(st.session_state.thread_id,st.session_state.group.entry_agent).agent.chat(message,stream=True)
-                with st.chat_message(next_agent):
-                    response = st.write_stream(stream)
+                while st.session_state.next_n_chat >0:
+                    st.session_state.skip_me = False
+                    if not st.session_state.init_discussion:
+                        # st.warning(build_handoff_message(st.session_state.messages,chosen_people))
+                        next_agent = st.session_state.group.handoff(
+                            messages=build_handoff_message(st.session_state.messages,chosen_people),
+                                                        model=st.session_state.model,
+                                                        handoff_max_turns=1,
+                                                        include_current = False,
+                                                        next_speaker_select_mode=talk_order.lower(),
+                                                        thread_id=st.session_state.thread_id)
+                    else:
+                        next_agent = st.session_state.group.entry_agent.name
                     language_map = {
-                        "English": "Next Person",
-                        "中文": "下一个人",
-                        "日本語": "次の人",
-                        "한국어": "다음 사람"
+                        "English": "Transfer to {}",
+                        "中文": "转接给 {}",
+                        "日本語": "{} に転送",
+                        "한국어": "{} 로 전환"
                     }
-                    text = language_map.get(st.session_state.language, language_map["English"])
+                    text = language_map.get(st.session_state.language, language_map["English"]).format(participants_language_reverse_map.get(next_agent.replace("_"," ")).get(st.session_state.language, next_agent.replace("_"," ")))
+                    st.session_state.messages.append({"role": "assistant", "content":text, "sender": "helper"})
+                    with st.chat_message("ai"):
+                        st.markdown(text)
+                    message = build_message(st.session_state.messages,next_agent,topic,supplementary_information,chosen_people_original)
+                    # st.warning(message) # debug
+                    stream = st.session_state.group.current_agent.get(st.session_state.thread_id,st.session_state.group.entry_agent).agent.chat(message,stream=True)
+                    with st.chat_message(next_agent):
+                        response = st.write_stream(stream)                                
+                    st.session_state.messages.append({"role": "assistant", "content":response, "sender": next_agent})
+                    st.session_state.init_discussion = False
+                    st.session_state.next_n_chat -= 1
+                language_map = {
+                    "English": "Next",
+                    "中文": "下一个",
+                    "日本語": "次",
+                    "한국어": "다음"
+                }
+                next_3_language_map = {
+                    "English": "Next 3",
+                    "中文": "下3个",
+                    "日本語": "次の3",
+                    "한국어": "다음 3개"
+                }
+                next_5_language_map = {
+                    "English": "Next 5",
+                    "中文": "下5个",
+                    "日本語": "次の5つ",
+                    "한국어": "다음 5개"
+                }
+                
+                text = language_map.get(st.session_state.language, language_map["English"])
+                text_3 = next_3_language_map.get(st.session_state.language, next_3_language_map["English"])
+                text_5 = next_5_language_map.get(st.session_state.language, next_5_language_map["English"])
+                _,next_c1,next_c2,next_c3,_ = st.columns([2,1,1,1,2])
+                with next_c1:
                     st.button(label=text,on_click=skip_me, key="next_person_")
-                st.session_state.messages.append({"role": "assistant", "content":response, "sender": next_agent})
-                st.session_state.init_discussion = False
+                with next_c2:
+                    st.button(label=text_3,on_click=next_3_chat, key="next_3")
+                with next_c3:
+                    st.button(label=text_5,on_click=next_5_chat, key="next_5")
         else:
             if not st.session_state.api_key and not st.session_state.base_url:
                 language_map = {
