@@ -528,7 +528,10 @@ with col1:
             "한국어": "토론 시작"
         }
         text = language_map.get(st.session_state.language, language_map["English"])
-        if st.button(text,on_click=close_participants_select_mode,disabled=not st.session_state.participants_select_mode):
+        can_start = True
+        if len(chosen_people) < 2 and talk_order == "Auto":
+            can_start = False
+        if st.button(text,on_click=close_participants_select_mode,disabled=not st.session_state.participants_select_mode or not can_start):
             st.session_state.start_discussion = True
             st.toast("🎉 Discussion started.")
             # st.session_state.messages = [{"role": "user", "content": topic, "sender": "user"}]
@@ -748,6 +751,16 @@ with col2:
                     "中文": "请至少再选择一个人进行讨论。",
                     "日本語": "少なくとももう一人を選んで議論してください。",
                     "한국어": "최소한 한 사람을 더 선택하여 토론해 주세요."
+                }
+                text = language_map.get(st.session_state.language, language_map["English"])
+                st.warning(text)
+
+            if len(chosen_people) < 2 and talk_order == "Auto":
+                language_map = {
+                    "English": "Please choose at least two people to discuss with when the talk order is set to Auto.",
+                    "中文": "当对话顺序设置为自动时，请至少选择两个人进行讨论。",
+                    "日本語": "話し順が自動に設定されている場合は、少なくとも2人を選んで話し合いをしてください。",
+                    "한국어": "대화 순서가 자동으로 설정된 경우 최소 두 명을 선택하여 토론하세요 ."
                 }
                 text = language_map.get(st.session_state.language, language_map["English"])
                 st.warning(text)
