@@ -237,15 +237,6 @@ with st.sidebar:
         st.session_state.api_key = os.getenv("OPENAI_API_KEY")
 
     language_map = {
-        "English": "Add More Participants",
-        "中文": "添加更多参与者",
-        "日本語": "参加者を追加",
-        "한국어": "더 많은 참가자 추가"
-    }
-    text = language_map.get(st.session_state.language, language_map["English"])
-    st.caption(text)
-
-    language_map = {
         "English": "Hide Transfer Message",
         "中文": " 隐藏转移消息",
         "日本語": "転送メッセージを非表示",
@@ -254,6 +245,14 @@ with st.sidebar:
     text = language_map.get(st.session_state.language, language_map["English"])
     st.toggle(text,key="hide_ai_help_message") 
 
+    language_map = {
+        "English": "Add More Participants",
+        "中文": "添加更多参与者",
+        "日本語": "参加者を追加",
+        "한국어": "더 많은 참가자 추가"
+    }
+    text = language_map.get(st.session_state.language, language_map["English"])
+    st.caption(text)
     language_map = {
         "English": "Formatted as Designer,Engineer",
         "中文": "格式为 设计师,工程师",
