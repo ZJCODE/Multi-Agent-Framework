@@ -407,6 +407,14 @@ with col1:
     if topic and st.session_state.recommend_participant:
         try:
             recommended_participants = auto_recommend_participant(topic,supplementary_information,options,st.session_state.api_key,st.session_state.base_url,st.session_state.model)
+            language_map = {
+            "English": "Recommended",
+            "中文": "推荐",
+            "日本語": "おすすめ",
+            "한국어": "추천"
+            }
+            text = language_map.get(st.session_state.language, language_map["English"])
+            st.caption("{}: {}".format(text,",".join(recommended_participants)))
         except:
             language_map = {
                 "English": "🚨 Please make sure you have entered the OpenAI API Key.",
@@ -417,14 +425,7 @@ with col1:
             text = language_map.get(st.session_state.language, language_map["English"])
             st.toast(text)
             recommended_participants = []
-        language_map = {
-            "English": "Recommended",
-            "中文": "推荐",
-            "日本語": "おすすめ",
-            "한국어": "추천"
-        }
-        text = language_map.get(st.session_state.language, language_map["English"])
-        st.caption("{}: {}".format(text,",".join(recommended_participants)))
+
 
         participants_not_in_options = [participant for participant in recommended_participants if participant not in options]
         if participants_not_in_options:
