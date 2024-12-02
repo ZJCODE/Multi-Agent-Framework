@@ -69,7 +69,7 @@ if "default_participants" not in st.session_state:
     st.session_state.default_participants = []
 
 if "hide_ai_help_message" not in st.session_state:
-    st.session_state.hide_ai_help_message = True
+    st.session_state.hide_ai_help_message = False
 
 def skip_me():
     st.session_state.skip_me = True
@@ -100,7 +100,7 @@ def restart_discussion():
     st.session_state.default_participants = []
     st.session_state.next_n_chat = 1
     st.session_state.participants_select_mode = True
-    st.session_state.hide_ai_help_message = True
+    st.session_state.hide_ai_help_message = False
 
 @st.cache_data
 def translate2english(text,api_key,base_url,model):
