@@ -336,7 +336,9 @@ with col1:
     }
     help_text = help_language_map.get(st.session_state.language, language_map["English"])
 
-    topic = st.text_input(text,disabled=not st.session_state.participants_select_mode,help=help_text)
+    topic = st.text_input(text,help=help_text)
+    # topic = st.text_input(text,disabled=not st.session_state.participants_select_mode,help=help_text)
+
 
     language_map = {
         "English": "Supplementary Information",
@@ -352,7 +354,8 @@ with col1:
     }
     text = language_map.get(st.session_state.language, language_map["English"])
     placeholder_text = placeholder_language_map.get(st.session_state.language, placeholder_language_map["English"])
-    supplementary_information = st.text_area(text,placeholder=placeholder_text,disabled=not st.session_state.participants_select_mode,height=80)
+    supplementary_information = st.text_area(text,placeholder=placeholder_text,height=80)
+    #supplementary_information = st.text_area(text,placeholder=placeholder_text,disabled=not st.session_state.participants_select_mode,height=80)
 
     language_map = {
         "English": "Discuss Settings",
@@ -457,7 +460,7 @@ with col1:
     text = language_map.get(st.session_state.language, language_map["English"])
 
     
-    if st.button(label=text,help="Auto recommend participants based on the topic"):
+    if st.button(label=text,help="Auto recommend participants based on the topic",disabled=not st.session_state.participants_select_mode):
         try:
             with st.spinner('Recommending participants...' if st.session_state.language == "English" else '推荐参与者中...' if st.session_state.language == "中文" else '参加者を推薦中...' if st.session_state.language == "日本語" else '참가자 추천 중...'):
                 st.session_state.recommended_participants = auto_recommend_participant(topic,supplementary_information,options,st.session_state.api_key,st.session_state.base_url,st.session_state.model)
@@ -545,7 +548,7 @@ with col1:
         "한국어": ["순서","랜덤","자동"]
     }
     order_text = order_language_map.get(st.session_state.language, order_language_map["English"])
-    talk_order_original = st.selectbox(label=text,options=order_text,index=0)
+    talk_order_original = st.selectbox(label=text,options=order_text,index=0,disabled=not st.session_state.participants_select_mode)
 
     talk_order_map = {
         "Order": "Order","Random": "Random","Auto": "Auto",
@@ -635,7 +638,7 @@ with col2:
                 }
             caption_text = language_map.get(st.session_state.language, language_map["English"]).format(",".join(chosen_people_original), talk_order_original)
             st.caption(caption_text)
-    with st.container(height=600):
+    with st.container(height=608):
         for index,message in enumerate(st.session_state.messages):
             if "sender" in message and message["sender"] == "helper":
                 if not st.session_state.hide_ai_help_message:
