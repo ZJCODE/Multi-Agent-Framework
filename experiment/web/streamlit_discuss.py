@@ -171,8 +171,7 @@ def build_message(messages_history, current_speaker,topic,supplementary_informat
 
 ### Task
 
-Consider the previous opinions in the discussion. As a {}, it's your turn to speak.
-Do not just repeat what others have said. Instead, provide a new perspective or ask a question to encourage further discussion.
+Consider the previous opinions in the discussion.As a {}, it's your turn to speak.
 """.format(topic,
                 supplementary_information,
                 ",".join(participants),
@@ -183,7 +182,7 @@ Do not just repeat what others have said. Instead, provide a new perspective or 
     if current_speaker == 'Moderator':
         prompt += "\n\nAs a moderator, you can ask questions, summarize the discussion, or guide the conversation. if there is no previous message, you can start the discussion."
     else:
-        prompt += "\n\nJust return your answer."
+        prompt += "\n\nDo not just repeat what others have said. Instead, build on the conversation by introducing new ideas or perspectives."
     
     return prompt
 
