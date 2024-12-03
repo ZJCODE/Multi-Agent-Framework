@@ -171,7 +171,9 @@ def build_message(messages_history, current_speaker,topic,supplementary_informat
 
 ### Task
 
-Consider the previous opinions in the discussion. As a {}, it's your turn to speak.""".format(topic,
+Consider the previous opinions in the discussion. As a {}, it's your turn to speak.
+Do not just repeat what others have said. Instead, provide a new perspective or ask a question to encourage further discussion.
+""".format(topic,
                 supplementary_information,
                 ",".join(participants),
                 "\n\n".join([f"{message['content']}" for message in current_speaker_message]),
