@@ -7,7 +7,12 @@ import json
 from pydantic import BaseModel
 
 # Set the page layout to wide mode
-st.set_page_config(layout="wide",initial_sidebar_state="collapsed")
+# Set page config
+st.set_page_config(page_title='Agents Talk',
+                   page_icon='🧊',
+                   layout='wide',
+                   initial_sidebar_state='collapsed')
+
 
 load_dotenv()
 
