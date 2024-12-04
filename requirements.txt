@@ -3,3 +3,4 @@ openai
 tenacity
 graphviz
 streamlit
+pyyaml
