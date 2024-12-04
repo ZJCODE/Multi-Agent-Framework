@@ -238,12 +238,12 @@ with st.sidebar:
 
     if st.session_state.api_key and not st.session_state.base_url:
         st.session_state.base_url = None
-    # if empty, try to get from .env
-    if not st.session_state.base_url and not st.session_state.api_key:
-        st.session_state.base_url = os.getenv("OPENAI_BASE_URL")
-        st.session_state.api_key = os.getenv("OPENAI_API_KEY")
 
-    st.warning(st.secrets["SIMPLE_ACCESS_TOKEN"])
+    # if empty, try to get from .env
+    # if not st.session_state.base_url and not st.session_state.api_key:
+    #     st.session_state.base_url = os.getenv("OPENAI_BASE_URL")
+    #     st.session_state.api_key = os.getenv("OPENAI_API_KEY")
+
     if simple_access_token == st.secrets["SIMPLE_ACCESS_TOKEN"]:
         st.session_state.api_key = st.secrets["OPENAI_API_KEY"]
         st.session_state.base_url = st.secrets["OPENAI_BASE_URL"]
