@@ -800,10 +800,10 @@ with col2:
         else:
             if not st.session_state.api_key and not st.session_state.base_url:
                 language_map = {
-                    "English": "Please enter your API Key and Base URL in the sidebar.",
-                    "中文": "请在侧边栏中输入您的API Key和Base URL。",
-                    "日本語": "サイドバーにAPIキーとベースURLを入力してください。",
-                    "한국어": "사이드바에 API 키와 기본 URL을 입력하세요."
+                    "English": "Please enter your API Key and Base URL or Simple Access Token in the sidebar.",
+                    "中文": "请在侧边栏中输入您的 API Key 和 Base URL 或 Simple Access Token。",
+                    "日本語": "サイドバーにAPIキーとベースURLまたはシンプルアクセストークンを入力してください。",
+                    "한국어": "사이드바에 API 키 및 기본 URL 또는 간단한 액세스 토큰을 입력하세요."
                 }
                 text = language_map.get(st.session_state.language, language_map["English"])
                 st.warning(text)
