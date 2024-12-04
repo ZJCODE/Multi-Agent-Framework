@@ -244,11 +244,13 @@ with st.sidebar:
     #     st.session_state.base_url = os.getenv("OPENAI_BASE_URL")
     #     st.session_state.api_key = os.getenv("OPENAI_API_KEY")
 
-    if simple_access_token == st.secrets["SIMPLE_ACCESS_TOKEN"]:
+    if simple_access_token == os.getenv("SIMPLE_ACCESS_TOKEN"):
         st.session_state.base_url = os.getenv("OPENAI_BASE_URL")
         st.session_state.api_key = os.getenv("OPENAI_API_KEY")
-        # st.session_state.api_key = st.secrets["OPENAI_API_KEY"]
-        # st.session_state.base_url = st.secrets["OPENAI_BASE_URL"]
+
+    # if simple_access_token == st.secrets["SIMPLE_ACCESS_TOKEN"]:
+    #     st.session_state.api_key = st.secrets["OPENAI_API_KEY"]
+    #     st.session_state.base_url = st.secrets["OPENAI_BASE_URL"]
 
     language_map = {
         "English": "Hide Transfer Message",
