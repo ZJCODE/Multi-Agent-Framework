@@ -233,6 +233,7 @@ with st.sidebar:
     st.title(text)
     st.session_state.api_key = st.text_input("OpenAI API Key",type="password")
     st.session_state.base_url = st.text_input("Base URL")
+    simple_access_token = st.text_input("Simple Access Token",type="password")
     st.session_state.model = st.selectbox("Model",["gpt-4o-mini","gpt-4o","gpt-4"],index=0)
 
     if st.session_state.api_key and not st.session_state.base_url:
@@ -242,7 +243,7 @@ with st.sidebar:
         st.session_state.base_url = os.getenv("OPENAI_BASE_URL")
         st.session_state.api_key = os.getenv("OPENAI_API_KEY")
 
-    simple_access_token = st.text_input("Simple Access Token",type="password")
+    st.warning(st.secrets["SIMPLE_ACCESS_TOKEN"])
     if simple_access_token == st.secrets["SIMPLE_ACCESS_TOKEN"]:
         st.session_state.api_key = st.secrets["OPENAI_API_KEY"]
         st.session_state.base_url = st.secrets["OPENAI_BASE_URL"]
