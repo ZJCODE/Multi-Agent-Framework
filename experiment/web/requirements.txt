@@ -4,3 +4,4 @@ openai
 tenacity
 streamlit
 pyyaml
+tiktoken
