@@ -7,9 +7,16 @@ import itertools
 from pydantic import BaseModel
 import requests
 from typing import Dict, Optional, Literal, Union
+from enum import Enum
+
 
 from protocol import Member, Env, Message, GroupMessageProtocol
 
+class SpeakerSelectMode(Enum):
+    ORDER = "order"
+    RANDOM = "random"
+    AUTO = "auto"
+    AUTO2 = "auto2"
 class Group:
     def __init__(
         self, 
@@ -26,7 +33,7 @@ class Group:
         self.current_agent: Optional[str] = entry_agent if entry_agent else random.choice([m.name for m in self.env.members])
         self.members_map: Dict[str, Member] = {m.name: m for m in self.env.members}
         self.next_choice_base_model_map: Dict[str, BaseModel] = self._build_next_choice_base_model_map(include_current=False)
-        self.next_choice_base_model_map_incldue_current: Dict[str, BaseModel] = self._build_next_choice_base_model_map(include_current=True)
+        self.next_choice_base_model_map_include_current: Dict[str, BaseModel] = self._build_next_choice_base_model_map(include_current=True)
         self.env_public = Env(
             description=self.env.description,
             members=[Member(name=m.name, role=m.role,description=m.description) for m in self.env.members],
@@ -34,56 +41,6 @@ class Group:
         )
         self.group_messages: GroupMessageProtocol = GroupMessageProtocol(group_id=self.group_id,env=self.env_public)
         self.member_iterator = itertools.cycle(self.env.members)
-
-    def handoff_one_turn(
-            self,
-            next_speaker_select_mode:Literal["order","auto","auto2","random"]="auto",
-            model:str="gpt-4o-mini",
-            include_current:bool = True
-    ) -> str:
-        if next_speaker_select_mode == "order":
-            next_agent = next(self.member_iterator).name
-        elif next_speaker_select_mode == "random":
-            next_agent = random.choice([m.name for m in self.env.members])
-        elif next_speaker_select_mode == "auto":
-            # use function tool to handoff
-            handoff_tools = self._build_current_agent_handoff_tools(include_current)
-
-            messages = [{"role": "system", "content":"Decide who should be the next person to talk.Transfer the conversation to the next person."}]
-            handoff_message = self._build_handoff_message(self.group_messages,cut_off=3,use_tool=True)
-            messages.extend([{"role": "user", "content": handoff_message}])
-
-            response = self.model_client.chat.completions.create(
-                        model=model,
-                        messages=messages,
-                        temperature = 0.0,
-                        tools=handoff_tools,
-                        tool_choice="required"
-                    )
-            next_agent = response.choices[0].message.tool_calls[0].function.name
-        
-        elif next_speaker_select_mode == "auto2":
-            # use response_format to handoff
-            messages = [{"role": "system", "content":"Decide who should be the next person to talk.Transfer the conversation to the next person."}]
-            handoff_message = self._build_handoff_message(self.group_messages,cut_off=3,use_tool=False)
-            messages.extend([{"role": "user", "content": handoff_message}])
-
-            completion = self.model_client.beta.chat.completions.parse(
-                            model=model,
-                            messages=messages,
-                            temperature = 0.0,
-                            response_format=self.next_choice_base_model_map_incldue_current[self.current_agent] if include_current else self.next_choice_base_model_map[self.current_agent],
-                            max_tokens=10
-                        )
-
-            res = completion.choices[0].message.parsed
-            next_agent = res.agent_name
-        else:
-            raise ValueError("next_speaker_select_mode should be one of 'order','auto','auto2','random'")
-
-        self.current_agent = next_agent
-
-        return next_agent
 
     def handoff(
             self,
@@ -108,6 +65,55 @@ class Group:
         self.current_agent = next_agent
 
         return self.group_messages
+
+    def handoff_one_turn(
+            self,
+            next_speaker_select_mode: Literal["order", "auto", "auto2", "random"] = "auto",
+            model: str = "gpt-4o-mini",
+            include_current: bool = True
+    ) -> str:
+        next_agent = self._select_next_agent(next_speaker_select_mode, model, include_current)
+        self.current_agent = next_agent
+        return next_agent
+
+    def _select_next_agent(self, mode: Literal["order", "auto", "auto2", "random"], model: str, include_current: bool) -> str:
+        if mode == SpeakerSelectMode.ORDER.value:
+            return next(self.member_iterator).name
+        elif mode == SpeakerSelectMode.RANDOM.value:
+            return random.choice([m.name for m in self.env.members])
+        elif mode == SpeakerSelectMode.AUTO.value:
+            return self._select_next_agent_auto(model, include_current, use_tool=True)
+        elif mode == SpeakerSelectMode.AUTO2.value:
+            return self._select_next_agent_auto(model, include_current, use_tool=False)
+        else:
+            raise ValueError("next_speaker_select_mode should be one of 'order', 'auto', 'auto2', 'random'")
+
+    def _select_next_agent_auto(self, model: str, include_current: bool, use_tool: bool) -> str:
+
+        messages = [{"role": "system", "content": "Decide who should be the next person to talk. Transfer the conversation to the next person."}]
+        handoff_message = self._build_handoff_message(self.group_messages, cut_off=3, use_tool=use_tool)
+        messages.extend([{"role": "user", "content": handoff_message}])
+
+        if use_tool:
+            handoff_tools = self._build_current_agent_handoff_tools(include_current)
+            response = self.model_client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=0.0,
+                tools=handoff_tools,
+                tool_choice="required"
+            )
+            return response.choices[0].message.tool_calls[0].function.name
+        else:
+            response_format = self.next_choice_base_model_map_include_current[self.current_agent] if include_current else self.next_choice_base_model_map[self.current_agent]
+            completion = self.model_client.beta.chat.completions.parse(
+                model=model,
+                messages=messages,
+                temperature=0.0,
+                response_format=response_format,
+                max_tokens=10
+            )
+            return completion.choices[0].message.parsed.agent_name
     
     def update_group_messages(self, message:Message):
         self.group_messages.context.append(message)
