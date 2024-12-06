@@ -6,7 +6,7 @@ import uuid
 import itertools
 from pydantic import BaseModel
 import requests
-from typing import Dict, Optional, Literal, Union
+from typing import Dict, Optional, Literal, Union, Tuple
 from enum import Enum
 
 from protocol import Member, Env, Message, GroupMessageProtocol
@@ -38,27 +38,79 @@ class Group:
         self.next_choice_base_model_map_include_current: Dict[str, BaseModel] = self._build_next_choice_base_model_map(True)
         self.group_messages: GroupMessageProtocol = GroupMessageProtocol(group_id=self.group_id,env=self.env_public)
 
+    def add_member(self, member: Member,relation:Optional[Tuple[str,str]] = None):
+        if member.name in self.members_map:
+            raise ValueError(f"Member with name {member.name} already exists")
+        self.env.members.append(member)
+        self.members_map[member.name] = member
+        self.member_iterator = itertools.cycle(self.env.members)
+        self._rectify_relationships()
+        if not self.fully_connected and relation is not None:
+            for r in relation:
+                if r[0] not in self.env.relationships:
+                    raise ValueError(f"Member with name {r[0]} does not exist")
+                if member.name not in r:
+                    continue
+                self.env.relationships[r[0]].append(r[1])
+        self._set_env_public()
+        self.next_choice_base_model_map = self._build_next_choice_base_model_map(False)
+        self.next_choice_base_model_map_include_current = self._build_next_choice_base_model_map(True)
+        self.group_messages.env = self.env_public
+
+    def delete_member(self, member_name:str):
+        # if current agent is the one to be deleted, handoff to the next agent by order
+        if member_name not in self.members_map:
+            raise ValueError(f"Member with name {member_name} does not exist")
+        self.env.members = [m for m in self.env.members if m.name != member_name]
+        self.members_map.pop(member_name)
+        self.member_iterator = itertools.cycle(self.env.members)
+        self._rectify_relationships()
+        if not self.fully_connected:
+            self.env.relationships.pop(member_name)
+            for k,v in self.env.relationships.items():
+                if member_name in v:
+                    v.remove(member_name)
+        self._set_env_public()
+        self.next_choice_base_model_map = self._build_next_choice_base_model_map(False)
+        self.next_choice_base_model_map_include_current = self._build_next_choice_base_model_map(True)
+        self.group_messages.env = self.env_public
+
+        if self.current_agent == member_name:
+            self.current_agent = random.choice([m.name for m in self.env.members]) if self.env.members else None
+
     def handoff(
             self,
             handoff_max_turns:int=3,
             next_speaker_select_mode:Literal["order","auto","auto2","random"]="auto",
             model:str="gpt-4o-mini",
-            include_current:bool = True
+            include_current:bool = True,
+            vobose:bool = False
     ):
+        visited_agent = set([self.current_agent])
         next_agent = self.handoff_one_turn(next_speaker_select_mode, model, include_current)
+        if vobose:
+            print(f"handoff from {self.current_agent} to {next_agent}")
         if self.fully_connected or next_speaker_select_mode in ["order","random"] or handoff_max_turns == 1:
-            self.group_messages.next_agent = next_agent
             self.current_agent = next_agent
-        
+            self.group_messages.next_agent = next_agent
+            return self.current_agent
         # recursive handoff until the next agent is same as the current agent (for auto and auto2 with handoff_max_turns > 1)
-        next_next_agent =  self.handoff_one_turn(next_speaker_select_mode,model,include_current)
+        visited_agent.add(next_agent)
+        next_next_agent =  self.handoff_one_turn(next_speaker_select_mode,model,True)
         while next_next_agent != next_agent and handoff_max_turns > 1:
+            if vobose:
+                print(f"handoff from {self.current_agent} to {next_next_agent}")
+            if next_next_agent in visited_agent:
+                break 
             next_agent = next_next_agent
-            next_next_agent = self.handoff_one_turn(next_speaker_select_mode,model,include_current)
+            self.current_agent = next_agent
+            next_next_agent = self.handoff_one_turn(next_speaker_select_mode,model,True)
             handoff_max_turns -= 1
         
         self.group_messages.next_agent = next_agent
         self.current_agent = next_agent
+
+        return self.current_agent
 
     def handoff_one_turn(
             self,
@@ -66,26 +118,22 @@ class Group:
             model: str = "gpt-4o-mini",
             include_current: bool = True
     ) -> str:
-        next_agent = self._select_next_agent(next_speaker_select_mode, model, include_current)
-        self.current_agent = next_agent
-        return next_agent
-
-    def _select_next_agent(self, mode: Literal["order", "auto", "auto2", "random"], model: str, include_current: bool) -> str:
-        if mode == SpeakerSelectMode.ORDER.value:
+        if next_speaker_select_mode == SpeakerSelectMode.ORDER.value:
             return next(self.member_iterator).name
-        elif mode == SpeakerSelectMode.RANDOM.value:
+        elif next_speaker_select_mode == SpeakerSelectMode.RANDOM.value:
             return random.choice([m.name for m in self.env.members])
-        elif mode == SpeakerSelectMode.AUTO.value:
-            return self._select_next_agent_auto(model, include_current, use_tool=True)
-        elif mode == SpeakerSelectMode.AUTO2.value:
-            return self._select_next_agent_auto(model, include_current, use_tool=False)
+        elif next_speaker_select_mode in (SpeakerSelectMode.AUTO.value, SpeakerSelectMode.AUTO2.value):
+            if not self.env.relationships[self.current_agent]:
+                return self.current_agent
+            return self._select_next_agent_auto(model, include_current, 
+                                                use_tool = next_speaker_select_mode == SpeakerSelectMode.AUTO.value)
         else:
             raise ValueError("next_speaker_select_mode should be one of 'order', 'auto', 'auto2', 'random'")
 
     def _select_next_agent_auto(self, model: str, include_current: bool, use_tool: bool) -> str:
 
         messages = [{"role": "system", "content": "Decide who should be the next person to talk. Transfer the conversation to the next person."}]
-        handoff_message = self._build_handoff_message(self.group_messages, cut_off=3, use_tool=use_tool)
+        handoff_message = self._build_handoff_message(self.group_messages, cut_off=1, use_tool=use_tool) # notice the cut_off setting
         messages.extend([{"role": "user", "content": handoff_message}])
 
         if use_tool:
@@ -157,7 +205,7 @@ class Group:
         """
         Rectify the relationships between the agents.
         """
-        if self.env.relationships is None:
+        if self.env.relationships is None or self.fully_connected:
             self.fully_connected = True
             self.env.relationships = {m.name: [n.name for n in self.env.members if n.name != m.name] for m in self.env.members}
         elif isinstance(self.env.relationships, list):
@@ -195,6 +243,8 @@ class SelectFor{}IncludeCurrent(BaseModel):
                 base_model_map.update({k:eval(f"SelectFor{k}IncludeCurrent")})
         else:
             for k,v in self.env.relationships.items():
+                if len(v) == 0:
+                    continue
                 class_str = """
 class SelectFor{}ExcludeCurrent(BaseModel):
     agent_name:Literal[{}]
