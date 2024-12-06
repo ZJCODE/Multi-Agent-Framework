@@ -9,7 +9,6 @@ import requests
 from typing import Dict, Optional, Literal, Union
 from enum import Enum
 
-
 from protocol import Member, Env, Message, GroupMessageProtocol
 
 class SpeakerSelectMode(Enum):
@@ -17,6 +16,7 @@ class SpeakerSelectMode(Enum):
     RANDOM = "random"
     AUTO = "auto"
     AUTO2 = "auto2"
+
 class Group:
     def __init__(
         self, 
@@ -25,22 +25,18 @@ class Group:
         group_id: str = None,
         entry_agent: Optional[str] = None
     ):
+        self.fully_connected = False # will be updated in _rectify_relationships
         self.group_id:str = group_id if group_id else str(uuid.uuid4())
         self.env: Env = self._read_env_from_file(env) if isinstance(env, str) else env
-        self.fully_connected = False
-        self._rectify_relationships()
         self.model_client: OpenAI = model_client # currently only supports OpenAI synthetic API
         self.current_agent: Optional[str] = entry_agent if entry_agent else random.choice([m.name for m in self.env.members])
         self.members_map: Dict[str, Member] = {m.name: m for m in self.env.members}
-        self.next_choice_base_model_map: Dict[str, BaseModel] = self._build_next_choice_base_model_map(include_current=False)
-        self.next_choice_base_model_map_include_current: Dict[str, BaseModel] = self._build_next_choice_base_model_map(include_current=True)
-        self.env_public = Env(
-            description=self.env.description,
-            members=[Member(name=m.name, role=m.role,description=m.description) for m in self.env.members],
-            relationships=self.env.relationships
-        )
-        self.group_messages: GroupMessageProtocol = GroupMessageProtocol(group_id=self.group_id,env=self.env_public)
         self.member_iterator = itertools.cycle(self.env.members)
+        self._rectify_relationships()
+        self._set_env_public()
+        self.next_choice_base_model_map: Dict[str, BaseModel] = self._build_next_choice_base_model_map(False)
+        self.next_choice_base_model_map_include_current: Dict[str, BaseModel] = self._build_next_choice_base_model_map(True)
+        self.group_messages: GroupMessageProtocol = GroupMessageProtocol(group_id=self.group_id,env=self.env_public)
 
     def handoff(
             self,
@@ -48,7 +44,7 @@ class Group:
             next_speaker_select_mode:Literal["order","auto","auto2","random"]="auto",
             model:str="gpt-4o-mini",
             include_current:bool = True
-    ) -> GroupMessageProtocol:
+    ):
         next_agent = self.handoff_one_turn(next_speaker_select_mode, model, include_current)
         if self.fully_connected or next_speaker_select_mode in ["order","random"] or handoff_max_turns == 1:
             self.group_messages.next_agent = next_agent
@@ -63,8 +59,6 @@ class Group:
         
         self.group_messages.next_agent = next_agent
         self.current_agent = next_agent
-
-        return self.group_messages
 
     def handoff_one_turn(
             self,
@@ -121,10 +115,15 @@ class Group:
     def call_agent(
             self,
             next_speaker_select_mode:Literal["order","auto","auto2","random"]="auto",
+            include_current:bool = True,
             model:str="gpt-4o-mini",
-            include_current:bool = True
+            agent:str = None # can mauanlly set the agent to call
     ) -> Message:
-        _ = self.handoff(next_speaker_select_mode=next_speaker_select_mode,model=model,include_current=include_current)
+        if agent is not None and agent in self.members_map:
+            self.group_messages.next_agent = agent
+            self.current_agent = agent
+        else:
+            self.handoff(next_speaker_select_mode=next_speaker_select_mode,model=model,include_current=include_current)
         message_send = self._build_send_message(self.group_messages,cut_off=3)
         response = self._call_agent_func(self.current_agent,self.members_map[self.current_agent].access_token,message_send,self.group_id)
         self.update_group_messages(response)
@@ -171,6 +170,12 @@ class Group:
                 if m.name not in self.env.relationships:
                     self.env.relationships[m.name] = []
 
+    def _set_env_public(self):
+        self.env_public = Env(
+            description=self.env.description,
+            members=[Member(name=m.name, role=m.role, description=m.description) for m in self.env.members],
+            relationships=self.env.relationships
+        )
 
     def _build_current_agent_handoff_tools(self, include_current_agent:bool = False):
         handoff_tools = [self._build_agent_call_function(self.members_map[self.current_agent])] if include_current_agent else []
