@@ -49,8 +49,8 @@ class Group:
         if self.fully_connected or next_speaker_select_mode in ["order","random"] or handoff_max_turns == 1:
             self.group_messages.next_agent = next_agent
             self.current_agent = next_agent
-            return self.group_messages
         
+        # recursive handoff until the next agent is same as the current agent (for auto and auto2 with handoff_max_turns > 1)
         next_next_agent =  self.handoff_one_turn(next_speaker_select_mode,model,include_current)
         while next_next_agent != next_agent and handoff_max_turns > 1:
             next_agent = next_next_agent
