@@ -12,12 +12,6 @@ from utilities.logger import Logger
 
 from protocol import Member, Env, Message, GroupMessageProtocol
 
-class SpeakerSelectMode(Enum):
-    ORDER = "order"
-    RANDOM = "random"
-    AUTO = "auto"
-    AUTO2 = "auto2"
-
 class Group:
     def __init__(
         self, 
@@ -59,7 +53,7 @@ class Group:
         self.next_choice_base_model_map = self._build_next_choice_base_model_map(False)
         self.next_choice_base_model_map_include_current = self._build_next_choice_base_model_map(True)
         self.group_messages.env = self.env_public
-        self._logger.log("info",f"Added member {member.name}")
+        self._logger.log("info",f"Succesfully add member {member.name}")
 
     def delete_member(self, member_name:str):
         # if current agent is the one to be deleted, handoff to the next agent by order
@@ -80,9 +74,9 @@ class Group:
         self.group_messages.env = self.env_public
 
         if self.current_agent == member_name:
-            self._logger.log("info",f"current agent {member_name} is deleted, randomly select a new agent as the current agent")
             self.current_agent = random.choice([m.name for m in self.env.members]) if self.env.members else None
-        self._logger.log("info",f"Deleted member {member_name}")
+            self._logger.log("info",f"current agent {member_name} is deleted, randomly select {self.current_agent} as the new current agent")
+        self._logger.log("info",f"Successfully delete member {member_name}")
 
     def handoff(
             self,
@@ -93,7 +87,7 @@ class Group:
     )->str:
         visited_agent = set([self.current_agent])
         next_agent = self.handoff_one_turn(next_speaker_select_mode, model, include_current)
-        self._logger.log("info",f"handoff from {self.current_agent} to {next_agent}")
+        self._logger.log("info",f"handoff from {self.current_agent} to {next_agent} by using {next_speaker_select_mode} mode")
         if self.fully_connected or next_speaker_select_mode in ["order","random"] or handoff_max_turns == 1:
             self.current_agent = next_agent
             return self.current_agent
@@ -101,7 +95,7 @@ class Group:
         visited_agent.add(next_agent)
         next_next_agent =  self.handoff_one_turn(next_speaker_select_mode,model,True)
         while next_next_agent != next_agent and handoff_max_turns > 1:
-            self._logger.log("info",f"handoff from {next_agent} to {next_next_agent}")
+            self._logger.log("info",f"handoff from {next_agent} to {next_next_agent} by using {next_speaker_select_mode} mode")
             if next_next_agent in visited_agent:
                 break 
             next_agent = next_next_agent
@@ -119,15 +113,15 @@ class Group:
             model: str = "gpt-4o-mini",
             include_current: bool = True
     ) -> str:
-        if next_speaker_select_mode == SpeakerSelectMode.ORDER.value:
+        if next_speaker_select_mode == "order":
             return next(self.member_iterator).name
-        elif next_speaker_select_mode == SpeakerSelectMode.RANDOM.value:
+        elif next_speaker_select_mode == "random":
             return random.choice([m.name for m in self.env.members])
-        elif next_speaker_select_mode in (SpeakerSelectMode.AUTO.value, SpeakerSelectMode.AUTO2.value):
+        elif next_speaker_select_mode in ("auto", "auto2"):
             if not self.env.relationships[self.current_agent]:
                 return self.current_agent
             return self._select_next_agent_auto(model, include_current, 
-                                                use_tool = next_speaker_select_mode == SpeakerSelectMode.AUTO.value)
+                                                use_tool = next_speaker_select_mode == "auto")
         else:
             raise ValueError("next_speaker_select_mode should be one of 'order', 'auto', 'auto2', 'random'")
 
@@ -137,7 +131,7 @@ class Group:
         handoff_message = self._build_handoff_message(self.group_messages, cut_off=1, use_tool=use_tool) # notice the cut_off setting
         messages.extend([{"role": "user", "content": handoff_message}])
 
-        # if use_tool is True, the agent will be selected based on the tool call
+        # if use_tool is True, the agent will be selected based on the tool call [auto]
         if use_tool:
             handoff_tools = self._build_current_agent_handoff_tools(include_current)
             response = self.model_client.chat.completions.create(
@@ -148,7 +142,7 @@ class Group:
                 tool_choice="required"
             )
             return response.choices[0].message.tool_calls[0].function.name
-        # if use_tool is False, the agent will be selected based on the response format
+        # if use_tool is False, the agent will be selected based on the response format [auto2]
         else:
             response_format = self.next_choice_base_model_map_include_current[self.current_agent] if include_current else self.next_choice_base_model_map[self.current_agent]
             completion = self.model_client.beta.chat.completions.parse(
@@ -186,7 +180,9 @@ class Group:
         """
         dot = graphviz.Digraph(format='png')
         for member in self.env.members:
-            dot.node(member.name, f"{member.name}\n{member.role}")
+            color = 'orange' if member.name == self.current_agent else 'black'
+            label = f"{member.name}\n{member.role}"
+            dot.node(member.name, label, color=color)
         for m1, m2 in self.env.relationships.items():
             for m in m2:
                 dot.edge(m1, m)
@@ -212,12 +208,13 @@ class Group:
             self.fully_connected = True
             self.env.relationships = {m.name: [n.name for n in self.env.members if n.name != m.name] for m in self.env.members}
         elif isinstance(self.env.relationships, list):
-            self._logger.log("info","Convert relationships from list to dictionary")
+            self._logger.log("info","Self-defined relationships,covnert relationships from list to dictionary")
             relationships = {m.name: [] for m in self.env.members}
             for m1, m2 in self.env.relationships:
                 relationships[m1].append(m2)
                 relationships[m2].append(m1)
         else:
+            self._logger.log("info","Self-defined relationships")
             for m in self.env.members:
                 if m.name not in self.env.relationships:
                     self.env.relationships[m.name] = []
