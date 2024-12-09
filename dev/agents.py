@@ -8,6 +8,7 @@ from pydantic import BaseModel
 import requests
 from typing import Dict, Optional, Literal, Union, Tuple
 from enum import Enum
+from utilities.logger import Logger
 
 from protocol import Member, Env, Message, GroupMessageProtocol
 
@@ -23,7 +24,8 @@ class Group:
         env: Union[Env, str],
         model_client: OpenAI,
         group_id: str = None,
-        entry_agent: Optional[str] = None
+        entry_agent: Optional[str] = None,
+        verbose: bool = False
     ):
         self.fully_connected = False # will be updated in _rectify_relationships
         self.group_id:str = group_id if group_id else str(uuid.uuid4())
@@ -37,6 +39,7 @@ class Group:
         self.next_choice_base_model_map: Dict[str, BaseModel] = self._build_next_choice_base_model_map(False)
         self.next_choice_base_model_map_include_current: Dict[str, BaseModel] = self._build_next_choice_base_model_map(True)
         self.group_messages: GroupMessageProtocol = GroupMessageProtocol(group_id=self.group_id,env=self.env_public)
+        self._logger = Logger(verbose=verbose)
 
     def add_member(self, member: Member,relation:Optional[Tuple[str,str]] = None):
         if member.name in self.members_map:
@@ -88,8 +91,7 @@ class Group:
     ):
         visited_agent = set([self.current_agent])
         next_agent = self.handoff_one_turn(next_speaker_select_mode, model, include_current)
-        if vobose:
-            print(f"handoff from {self.current_agent} to {next_agent}")
+        self._logger.log("info",f"handoff from {self.current_agent} to {next_agent}")
         if self.fully_connected or next_speaker_select_mode in ["order","random"] or handoff_max_turns == 1:
             self.current_agent = next_agent
             self.group_messages.next_agent = next_agent
@@ -98,8 +100,7 @@ class Group:
         visited_agent.add(next_agent)
         next_next_agent =  self.handoff_one_turn(next_speaker_select_mode,model,True)
         while next_next_agent != next_agent and handoff_max_turns > 1:
-            if vobose:
-                print(f"handoff from {self.current_agent} to {next_next_agent}")
+            self._logger.log("info",f"handoff from {next_agent} to {next_next_agent}")
             if next_next_agent in visited_agent:
                 break 
             next_agent = next_next_agent
