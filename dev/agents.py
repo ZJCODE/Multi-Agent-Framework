@@ -20,17 +20,16 @@ class Group:
         group_id: Optional[str] = None,
         entry_agent: Optional[str] = None,
         messages_max_keep: Optional[int] = None,
-        strategy:Literal["sequential","hierarchical","group"] = "group",
         verbose: bool = False
     ):
         self._logger = Logger(verbose=verbose)
         self.fully_connected = False # will be updated in _rectify_relationships
         self.messages_max_keep = messages_max_keep # maximum number of messages to keep in the group_messages' context
-        self.strategy = strategy
         self.group_id:str = group_id if group_id else str(uuid.uuid4()) # unique group
         self.env: Env = self._read_env_from_file(env) if isinstance(env, str) else env
         self.model_client: OpenAI = model_client # currently only supports OpenAI synthetic API
         self.current_agent: Optional[str] = entry_agent if entry_agent else random.choice([m.name for m in self.env.members])
+        self.entry_agent = entry_agent
         self.members_map: Dict[str, Member] = {m.name: m for m in self.env.members}
         self.member_iterator = itertools.cycle(self.env.members)
         self._rectify_relationships()
@@ -166,6 +165,9 @@ class Group:
             self.group_messages.context.pop(0)
         self.group_messages.context.append(message)
 
+    def reset_group_messages(self):
+        self.group_messages.context = []
+
     def call_agent(
             self,
             next_speaker_select_mode:Literal["order","auto","auto2","random"]="auto",
@@ -182,10 +184,37 @@ class Group:
         message_send = self._build_send_message(self.group_messages,cut_off=message_cut_off,send_to=self.current_agent)
         response = self._call_agent_func(self.current_agent,self.members_map[self.current_agent].access_token,message_send,self.group_id)
         self.update_group_messages(response)
+        self._logger.log("info",f"Call agent {self.current_agent}",color="bold_green")
+        self._logger.log("info",f"Agent {self.current_agent} response: {response.result}",color="bold_purple")
         return response
 
-    def task(self,task:str):
-        pass
+    def task(
+            self,
+            task:str,
+            strategy:Literal["sequential","hierarchical"] = "sequential",
+            model:str="gpt-4o-mini",
+        ):
+        self.reset_group_messages()
+        if strategy == "sequential":
+            return self._task_sequential(task,model)
+        elif strategy == "hierarchical":
+            return self._task_hierarchical(task,model)
+        else:
+            raise ValueError("strategy should be one of 'sequential' or 'hierarchical'")
+        
+    def _task_sequential(self,task:str,model:str="gpt-4o-mini"):
+        if self.entry_agent is None:
+            raise ValueError("Entry agent is not defined")
+        step = 0
+        self.update_group_messages(Message(sender="user",action="task",result=task))
+        self._logger.log("info",f"Start task: {task}")
+        self.current_agent = self.entry_agent
+        while step < len(self.env.members):
+            self.call_agent(next_speaker_select_mode="order",model=model,include_current=False,message_cut_off=None)
+            step += 1
+            self._logger.log("info",f"Step {step} by {self.current_agent}")
+        self._logger.log("info","Task finished")
+        return self.group_messages
 
     def draw_relations(self):
         """ 
@@ -352,7 +381,7 @@ Consider the Background Information and the previous messages. Decide who should
         return message        
 
     @staticmethod
-    def _build_send_message(gmp:GroupMessageProtocol,cut_off:int=3,send_to:str=None):
+    def _build_send_message(gmp:GroupMessageProtocol,cut_off:int=None,send_to:str=None):
         """ 
         This function builds a prompt for the agent to send a message in the group message protocol.
 
@@ -364,30 +393,34 @@ Consider the Background Information and the previous messages. Decide who should
         Returns:
             str: The prompt for the agent to send a message.
         """
-        assert cut_off > 0, "cut_off should be greater than 0"
+        
+        members_description = "\n".join([f"- {m.name} ({m.role})" for m in gmp.env.members])
 
-        prompt = """### Background Information
+        if cut_off is None:
+            previous_messages = "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in gmp.context if m.sender == send_to])
+            others_messages = "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in gmp.context if m.sender != send_to])
+        else:
+            previous_messages = "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in gmp.context[-cut_off:] if m.sender == send_to])
+            others_messages = "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in gmp.context[-cut_off:] if m.sender != send_to])
 
-{}
+        prompt = f"""### Background Information
 
-### Members
+            {gmp.env.description}
 
-{}
+            ### Members
 
-### Your Previous Message
+            {members_description}
 
-{}
+            ### Your Previous Message
 
-### Other people's Messages
+            {previous_messages}
 
-{}
+            ### Other people's Messages
 
-### Task
+            {others_messages}
 
-Consider the Background Information and the previous messages. Now, it's your turn.""".format(
-            gmp.env.description,
-            "\n".join([f"- {m.name} ({m.role})" for m in gmp.env.members]),
-            "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in gmp.context[-cut_off:] if m.sender == send_to]),
-            "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in gmp.context[-cut_off:] if m.sender != send_to]),
-        )
+            ### Task
+
+            Consider the Background Information and the previous messages. Now, it's your turn."""
+
         return prompt
