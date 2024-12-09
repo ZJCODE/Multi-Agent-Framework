@@ -89,7 +89,10 @@ class Group:
     )->str:
         visited_agent = set([self.current_agent])
         next_agent = self.handoff_one_turn(next_speaker_select_mode, model, include_current)
-        self._logger.log("info",f"handoff from {self.current_agent} to {next_agent} by using {next_speaker_select_mode} mode")
+        if self.current_agent != next_agent:
+            self._logger.log("info",f"handoff from {self.current_agent} to {next_agent} by using {next_speaker_select_mode} mode")
+        else:
+            self._logger.log("info",f"no handoff needed, stay with {self.current_agent} judge by {next_speaker_select_mode} mode")
         if self.fully_connected or next_speaker_select_mode in ["order","random"] or handoff_max_turns == 1:
             self.current_agent = next_agent
             return self.current_agent
@@ -168,8 +171,9 @@ class Group:
             model:str="gpt-4o-mini",
             agent:str = None # can mauanlly set the agent to call
     ) -> Message:
-        if agent is not None and agent in self.members_map:
+        if agent in self.members_map:
             self.current_agent = agent
+            self._logger.log("info",f"manually set the current agent to {agent}")
         else:
             self.handoff(next_speaker_select_mode=next_speaker_select_mode,model=model,include_current=include_current)
         message_send = self._build_send_message(self.group_messages,cut_off=3,send_to=self.current_agent)
