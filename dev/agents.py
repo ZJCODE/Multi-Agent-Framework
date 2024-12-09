@@ -28,6 +28,7 @@ class Group:
         verbose: bool = False
     ):
         self.fully_connected = False # will be updated in _rectify_relationships
+        self._logger = Logger(verbose=verbose)
         self.group_id:str = group_id if group_id else str(uuid.uuid4())
         self.env: Env = self._read_env_from_file(env) if isinstance(env, str) else env
         self.model_client: OpenAI = model_client # currently only supports OpenAI synthetic API
@@ -39,8 +40,7 @@ class Group:
         self.next_choice_base_model_map: Dict[str, BaseModel] = self._build_next_choice_base_model_map(False)
         self.next_choice_base_model_map_include_current: Dict[str, BaseModel] = self._build_next_choice_base_model_map(True)
         self.group_messages: GroupMessageProtocol = GroupMessageProtocol(group_id=self.group_id,env=self.env_public)
-        self._logger = Logger(verbose=verbose)
-
+        
     def add_member(self, member: Member,relation:Optional[Tuple[str,str]] = None):
         if member.name in self.members_map:
             raise ValueError(f"Member with name {member.name} already exists")
