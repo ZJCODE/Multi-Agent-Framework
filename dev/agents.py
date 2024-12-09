@@ -17,14 +17,16 @@ class Group:
         self, 
         env: Union[Env, str],
         model_client: OpenAI,
-        group_id: str = None,
+        group_id: Optional[str] = None,
         entry_agent: Optional[str] = None,
-        messages_max_keep: int = None,
+        messages_max_keep: Optional[int] = None,
+        strategy:Literal["sequential","hierarchical","group"] = "group",
         verbose: bool = False
     ):
         self._logger = Logger(verbose=verbose)
         self.fully_connected = False # will be updated in _rectify_relationships
         self.messages_max_keep = messages_max_keep # maximum number of messages to keep in the group_messages' context
+        self.strategy = strategy
         self.group_id:str = group_id if group_id else str(uuid.uuid4()) # unique group
         self.env: Env = self._read_env_from_file(env) if isinstance(env, str) else env
         self.model_client: OpenAI = model_client # currently only supports OpenAI synthetic API
@@ -169,6 +171,7 @@ class Group:
             next_speaker_select_mode:Literal["order","auto","auto2","random"]="auto",
             include_current:bool = True,
             model:str="gpt-4o-mini",
+            message_cut_off:int=3,
             agent:str = None # can mauanlly set the agent to call
     ) -> Message:
         if agent in self.members_map:
@@ -176,10 +179,13 @@ class Group:
             self._logger.log("info",f"manually set the current agent to {agent}")
         else:
             self.handoff(next_speaker_select_mode=next_speaker_select_mode,model=model,include_current=include_current)
-        message_send = self._build_send_message(self.group_messages,cut_off=3,send_to=self.current_agent)
+        message_send = self._build_send_message(self.group_messages,cut_off=message_cut_off,send_to=self.current_agent)
         response = self._call_agent_func(self.current_agent,self.members_map[self.current_agent].access_token,message_send,self.group_id)
         self.update_group_messages(response)
         return response
+
+    def task(self,task:str):
+        pass
 
     def draw_relations(self):
         """ 
