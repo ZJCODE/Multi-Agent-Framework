@@ -323,37 +323,35 @@ class SelectFor{}ExcludeCurrent(BaseModel):
             str: The prompt for the agent to decide who should be the next person been handoff to.
         """
 
+        messages = "\n\n".join([f"```{m.sender}\n {m.result}\n```" for m in gmp.context[-cut_off:]])
+
         if use_tool:
-            prompt = """### Background Information
+            prompt = f"""### Background Information
 
-{}
+                {gmp.env.description}
 
-### Messages
+                ### Messages
 
-{}""".format(
-                gmp.env.description,
-                    "\n\n".join([f"```{m.sender}\n {m.result}\n```" for m in gmp.context[-cut_off:]])
-                )
+                {messages}"""
         else:
-            prompt = """### Background Information
+            members_description = "\n\n".join([f"```{m.name}\n({m.role}):{m.description}\n```" for m in gmp.env.members])
 
-{}
+            prompt = f"""### Background Information
 
-### Members
+                {gmp.env.description}
 
-{}
+                ### Members
 
-### Messages
+                {members_description}
 
-{}
+                ### Messages
 
-### Task
+                {messages}
 
-Consider the Background Information and the previous messages. Decide who should be the next person to send a message,choose from members.""".format(
-                gmp.env.description,
-                "\n\n".join([f"```{m.name}\n({m.role}):{m.description}\n```" for m in gmp.env.members]),
-                "\n\n".join([f"```{m.sender}\n{m.result}\n```" for m in gmp.context[-cut_off:]])
-                )
+                ### Task
+
+                Consider the Background Information and the previous messages. Decide who should be the next person to send a message,choose from members."""
+            
         return prompt
     
     @staticmethod
