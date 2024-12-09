@@ -163,9 +163,11 @@ class Group:
     def update_group_messages(self, message:Message):
         if self.messages_max_keep is not None and len(self.group_messages.context) >= self.messages_max_keep:
             self.group_messages.context.pop(0)
+            # persist the popped group_messages context to the storage(local file or database)
         self.group_messages.context.append(message)
 
     def reset_group_messages(self):
+        # prsisit the whole group_messages context to the storage(local file or database) then reset the context
         self.group_messages.context = []
 
     def call_agent(
