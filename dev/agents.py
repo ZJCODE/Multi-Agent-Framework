@@ -7,7 +7,6 @@ import itertools
 from pydantic import BaseModel
 import requests
 from typing import Dict, Optional, Literal, Union, Tuple
-from enum import Enum
 from utilities.logger import Logger
 
 from protocol import Member, Env, Message, GroupMessageProtocol
