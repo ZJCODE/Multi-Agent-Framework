@@ -19,11 +19,13 @@ class Group:
         model_client: OpenAI,
         group_id: str = None,
         entry_agent: Optional[str] = None,
+        messages_max_keep: int = None,
         verbose: bool = False
     ):
-        self.fully_connected = False # will be updated in _rectify_relationships
         self._logger = Logger(verbose=verbose)
-        self.group_id:str = group_id if group_id else str(uuid.uuid4())
+        self.fully_connected = False # will be updated in _rectify_relationships
+        self.messages_max_keep = messages_max_keep # maximum number of messages to keep in the group_messages' context
+        self.group_id:str = group_id if group_id else str(uuid.uuid4()) # unique group
         self.env: Env = self._read_env_from_file(env) if isinstance(env, str) else env
         self.model_client: OpenAI = model_client # currently only supports OpenAI synthetic API
         self.current_agent: Optional[str] = entry_agent if entry_agent else random.choice([m.name for m in self.env.members])
@@ -155,6 +157,8 @@ class Group:
             return completion.choices[0].message.parsed.agent_name
     
     def update_group_messages(self, message:Message):
+        if self.messages_max_keep is not None and len(self.group_messages.context) >= self.messages_max_keep:
+            self.group_messages.context.pop(0)
         self.group_messages.context.append(message)
 
     def call_agent(

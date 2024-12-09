@@ -74,3 +74,5 @@ class GroupMessageProtocol:
     group_id: str
     env: Env
     context: List[Message] = field(default_factory=list)
+
+
