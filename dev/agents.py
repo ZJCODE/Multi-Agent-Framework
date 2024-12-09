@@ -86,9 +86,8 @@ class Group:
             handoff_max_turns:int=3,
             next_speaker_select_mode:Literal["order","auto","auto2","random"]="auto",
             model:str="gpt-4o-mini",
-            include_current:bool = True,
-            vobose:bool = False
-    ):
+            include_current:bool = True
+    )->str:
         visited_agent = set([self.current_agent])
         next_agent = self.handoff_one_turn(next_speaker_select_mode, model, include_current)
         self._logger.log("info",f"handoff from {self.current_agent} to {next_agent}")
@@ -137,6 +136,7 @@ class Group:
         handoff_message = self._build_handoff_message(self.group_messages, cut_off=1, use_tool=use_tool) # notice the cut_off setting
         messages.extend([{"role": "user", "content": handoff_message}])
 
+        # if use_tool is True, the agent will be selected based on the tool call
         if use_tool:
             handoff_tools = self._build_current_agent_handoff_tools(include_current)
             response = self.model_client.chat.completions.create(
@@ -147,6 +147,7 @@ class Group:
                 tool_choice="required"
             )
             return response.choices[0].message.tool_calls[0].function.name
+        # if use_tool is False, the agent will be selected based on the response format
         else:
             response_format = self.next_choice_base_model_map_include_current[self.current_agent] if include_current else self.next_choice_base_model_map[self.current_agent]
             completion = self.model_client.beta.chat.completions.parse(
