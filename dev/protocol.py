@@ -74,4 +74,3 @@ class GroupMessageProtocol:
     group_id: str
     env: Env
     context: List[Message] = field(default_factory=list)
-    next_agent: Optional[str] = None  # Currently, only one agent is supported

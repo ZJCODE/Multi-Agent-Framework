@@ -41,6 +41,9 @@ class Group:
         self.group_messages: GroupMessageProtocol = GroupMessageProtocol(group_id=self.group_id,env=self.env_public)
         self._logger = Logger(verbose=verbose)
 
+    def task_manger(self):
+        pass        
+
     def add_member(self, member: Member,relation:Optional[Tuple[str,str]] = None):
         if member.name in self.members_map:
             raise ValueError(f"Member with name {member.name} already exists")
@@ -93,7 +96,6 @@ class Group:
         self._logger.log("info",f"handoff from {self.current_agent} to {next_agent}")
         if self.fully_connected or next_speaker_select_mode in ["order","random"] or handoff_max_turns == 1:
             self.current_agent = next_agent
-            self.group_messages.next_agent = next_agent
             return self.current_agent
         # recursive handoff until the next agent is same as the current agent (for auto and auto2 with handoff_max_turns > 1)
         visited_agent.add(next_agent)
@@ -106,8 +108,7 @@ class Group:
             self.current_agent = next_agent
             next_next_agent = self.handoff_one_turn(next_speaker_select_mode,model,True)
             handoff_max_turns -= 1
-        
-        self.group_messages.next_agent = next_agent
+        self
         self.current_agent = next_agent
 
         return self.current_agent
@@ -170,11 +171,10 @@ class Group:
             agent:str = None # can mauanlly set the agent to call
     ) -> Message:
         if agent is not None and agent in self.members_map:
-            self.group_messages.next_agent = agent
             self.current_agent = agent
         else:
             self.handoff(next_speaker_select_mode=next_speaker_select_mode,model=model,include_current=include_current)
-        message_send = self._build_send_message(self.group_messages,cut_off=3)
+        message_send = self._build_send_message(self.group_messages,cut_off=3,send_to=self.current_agent)
         response = self._call_agent_func(self.current_agent,self.members_map[self.current_agent].access_token,message_send,self.group_id)
         self.update_group_messages(response)
         return response
@@ -340,18 +340,18 @@ Consider the Background Information and the previous messages. Decide who should
         return message        
 
     @staticmethod
-    def _build_send_message(gmp:GroupMessageProtocol,cut_off:int=3):
+    def _build_send_message(gmp:GroupMessageProtocol,cut_off:int=3,send_to:str=None):
         """ 
         This function builds a prompt for the agent to send a message in the group message protocol.
 
         Args:
             gmp (GroupMessageProtocol): The group message protocol Instance.
             cut_off (int): The number of previous messages to consider.
+            send_to (str): The agent to send the message
 
         Returns:
             str: The prompt for the agent to send a message.
         """
-        assert gmp.next_agent is not None, "next_agent should be set"
         assert cut_off > 0, "cut_off should be greater than 0"
 
         prompt = """### Background Information
@@ -375,7 +375,7 @@ Consider the Background Information and the previous messages. Decide who should
 Consider the Background Information and the previous messages. Now, it's your turn.""".format(
             gmp.env.description,
             "\n".join([f"- {m.name} ({m.role})" for m in gmp.env.members]),
-            "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in gmp.context[-cut_off:] if m.sender == gmp.next_agent]),
-            "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in gmp.context[-cut_off:] if m.sender != gmp.next_agent]),
+            "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in gmp.context[-cut_off:] if m.sender == send_to]),
+            "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in gmp.context[-cut_off:] if m.sender != send_to]),
         )
         return prompt
