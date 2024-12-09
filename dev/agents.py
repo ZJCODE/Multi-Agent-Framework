@@ -41,9 +41,6 @@ class Group:
         self.group_messages: GroupMessageProtocol = GroupMessageProtocol(group_id=self.group_id,env=self.env_public)
         self._logger = Logger(verbose=verbose)
 
-    def task_manger(self):
-        pass        
-
     def add_member(self, member: Member,relation:Optional[Tuple[str,str]] = None):
         if member.name in self.members_map:
             raise ValueError(f"Member with name {member.name} already exists")
@@ -62,6 +59,7 @@ class Group:
         self.next_choice_base_model_map = self._build_next_choice_base_model_map(False)
         self.next_choice_base_model_map_include_current = self._build_next_choice_base_model_map(True)
         self.group_messages.env = self.env_public
+        self._logger.log("info",f"Added member {member.name}")
 
     def delete_member(self, member_name:str):
         # if current agent is the one to be deleted, handoff to the next agent by order
@@ -82,7 +80,9 @@ class Group:
         self.group_messages.env = self.env_public
 
         if self.current_agent == member_name:
+            self._logger.log("info",f"current agent {member_name} is deleted, randomly select a new agent as the current agent")
             self.current_agent = random.choice([m.name for m in self.env.members]) if self.env.members else None
+        self._logger.log("info",f"Deleted member {member_name}")
 
     def handoff(
             self,
@@ -208,9 +208,11 @@ class Group:
         Rectify the relationships between the agents.
         """
         if self.env.relationships is None or self.fully_connected:
+            self._logger.log("info","All agents are fully connected")
             self.fully_connected = True
             self.env.relationships = {m.name: [n.name for n in self.env.members if n.name != m.name] for m in self.env.members}
         elif isinstance(self.env.relationships, list):
+            self._logger.log("info","Convert relationships from list to dictionary")
             relationships = {m.name: [] for m in self.env.members}
             for m1, m2 in self.env.relationships:
                 relationships[m1].append(m2)
@@ -231,7 +233,6 @@ class Group:
         handoff_tools = [self._build_agent_handoff_tool_function(self.members_map[self.current_agent])] if include_current_agent else []
         handoff_tools.extend(self._build_agent_handoff_tool_function(self.members_map[agent]) for agent in self.env.relationships[self.current_agent])
         return handoff_tools
-
 
     def _build_next_choice_base_model_map(self,include_current:bool = False):
         base_model_map = {}
