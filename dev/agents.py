@@ -228,8 +228,8 @@ class Group:
         )
 
     def _build_current_agent_handoff_tools(self, include_current_agent:bool = False):
-        handoff_tools = [self._build_agent_call_function(self.members_map[self.current_agent])] if include_current_agent else []
-        handoff_tools.extend(self._build_agent_call_function(self.members_map[agent]) for agent in self.env.relationships[self.current_agent])
+        handoff_tools = [self._build_agent_handoff_tool_function(self.members_map[self.current_agent])] if include_current_agent else []
+        handoff_tools.extend(self._build_agent_handoff_tool_function(self.members_map[agent]) for agent in self.env.relationships[self.current_agent])
         return handoff_tools
 
 
@@ -256,7 +256,7 @@ class SelectFor{}ExcludeCurrent(BaseModel):
         return base_model_map
     
     @staticmethod
-    def _build_agent_call_function(agent: Member):
+    def _build_agent_handoff_tool_function(agent: Member):
         """
         Builds the schema for the given agent. 
         """
