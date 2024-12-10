@@ -33,8 +33,8 @@ class Group:
         self.member_iterator = itertools.cycle(self.env.members)
         self._rectify_relationships()
         self._set_env_public()
-        self.next_choice_base_model_map: Dict[str, BaseModel] = self._build_next_choice_base_model_map(False)
-        self.next_choice_base_model_map_include_current: Dict[str, BaseModel] = self._build_next_choice_base_model_map(True)
+        self.next_choice_response_format_map: Dict[str, BaseModel] = self._build_next_choice_response_format_map(False)
+        self.next_choice_response_format_map_include_current: Dict[str, BaseModel] = self._build_next_choice_response_format_map(True)
         self.group_messages: GroupMessageProtocol = GroupMessageProtocol(group_id=self.group_id,env=self.env_public)
         
     def add_member(self, member: Member,relation:Optional[Tuple[str,str]] = None):
@@ -52,8 +52,8 @@ class Group:
                     continue
                 self.env.relationships[r[0]].append(r[1])
         self._set_env_public()
-        self.next_choice_base_model_map = self._build_next_choice_base_model_map(False)
-        self.next_choice_base_model_map_include_current = self._build_next_choice_base_model_map(True)
+        self.next_choice_response_format_map = self._build_next_choice_response_format_map(False)
+        self.next_choice_response_format_map_include_current = self._build_next_choice_response_format_map(True)
         self.group_messages.env = self.env_public
         self._logger.log("info",f"Succesfully add member {member.name}")
 
@@ -71,8 +71,8 @@ class Group:
                 if member_name in v:
                     v.remove(member_name)
         self._set_env_public()
-        self.next_choice_base_model_map = self._build_next_choice_base_model_map(False)
-        self.next_choice_base_model_map_include_current = self._build_next_choice_base_model_map(True)
+        self.next_choice_response_format_map = self._build_next_choice_response_format_map(False)
+        self.next_choice_response_format_map_include_current = self._build_next_choice_response_format_map(True)
         self.group_messages.env = self.env_public
 
         if self.current_agent == member_name:
@@ -149,7 +149,7 @@ class Group:
             return response.choices[0].message.tool_calls[0].function.name
         # if use_tool is False, the agent will be selected based on the response format [auto2]
         else:
-            response_format = self.next_choice_base_model_map_include_current[self.current_agent] if include_current else self.next_choice_base_model_map[self.current_agent]
+            response_format = self.next_choice_response_format_map_include_current[self.current_agent] if include_current else self.next_choice_response_format_map[self.current_agent]
             completion = self.model_client.beta.chat.completions.parse(
                 model=model,
                 messages=messages,
@@ -275,8 +275,11 @@ class Group:
         handoff_tools.extend(self._build_agent_handoff_tool_function(self.members_map[agent]) for agent in self.env.relationships[self.current_agent])
         return handoff_tools
 
-    def _build_next_choice_base_model_map(self,include_current:bool = False):
-        base_model_map = {}
+    def _build_next_choice_response_format_map(self,include_current:bool = False):
+        """
+        
+        """
+        response_format_map = {}
         if include_current:
             for k,v in self.env.relationships.items():
                 agent_name_list = ",".join([f'"{i}"' for i in v+[k]])
@@ -285,7 +288,7 @@ class Group:
                     f"    agent_name:Literal[{agent_name_list}]\n"
                 )
                 exec(class_str)
-                base_model_map.update({k:eval(f"SelectFor{k}IncludeCurrent")})
+                response_format_map.update({k:eval(f"SelectFor{k}IncludeCurrent")})
         else:
             for k,v in self.env.relationships.items():
                 if len(v) == 0:
@@ -296,8 +299,8 @@ class Group:
                     f"    agent_name:Literal[{agent_name_list}]\n"
                 )
                 exec(class_str)
-                base_model_map.update({k:eval(f"SelectFor{k}ExcludeCurrent")})
-        return base_model_map
+                response_format_map.update({k:eval(f"SelectFor{k}ExcludeCurrent")})
+        return response_format_map
     
     @staticmethod
     def _build_agent_handoff_tool_function(agent: Member):
