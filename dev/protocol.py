@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import List, Tuple, Dict, Optional, Union
 
+
 @dataclass
 class Member:
     """Defines a member in the environment.
@@ -16,10 +17,10 @@ class Member:
         >>> member
         Member(name='Alice', role='Manager', description='Alice is the manager of the team.', access_token=None)
     """
+
     name: str
     role: str
     description: Optional[str] = None
-    access_token: Optional[str] = None
 
 @dataclass
 class Env:

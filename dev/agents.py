@@ -5,8 +5,9 @@ import yaml
 import uuid
 import itertools
 from pydantic import BaseModel
+from tenacity import retry, wait_random_exponential, stop_after_attempt
 import requests
-from typing import Dict, Optional, Literal, Union, Tuple
+from typing import Dict, Optional, Literal, Tuple,List,Union
 from utilities.logger import Logger
 
 from protocol import Member, Env, Message, GroupMessageProtocol
@@ -14,21 +15,17 @@ from protocol import Member, Env, Message, GroupMessageProtocol
 class Group:
     def __init__(
         self, 
-        env: Union[Env, str],
+        env: Env,
         model_client: OpenAI,
         group_id: Optional[str] = None,
-        entry_agent: Optional[str] = None,
-        messages_max_keep: Optional[int] = None,
         verbose: bool = False
     ):
         self._logger = Logger(verbose=verbose)
         self.fully_connected = False # will be updated in _rectify_relationships
-        self.messages_max_keep = messages_max_keep # maximum number of messages to keep in the group_messages' context
         self.group_id:str = group_id if group_id else str(uuid.uuid4()) # unique group
-        self.env: Env = self._read_env_from_file(env) if isinstance(env, str) else env
+        self.env: Env = env
         self.model_client: OpenAI = model_client # currently only supports OpenAI synthetic API
-        self.current_agent: Optional[str] = entry_agent if entry_agent else random.choice([m.name for m in self.env.members])
-        self.entry_agent = entry_agent
+        self.current_agent: Optional[str] = self.env.members[0].name # default current agent is the first agent in the members list
         self.members_map: Dict[str, Member] = {m.name: m for m in self.env.members}
         self.member_iterator = itertools.cycle(self.env.members)
         self._rectify_relationships()
@@ -37,6 +34,12 @@ class Group:
         self.next_choice_response_format_map_include_current: Dict[str, BaseModel] = self._build_next_choice_response_format_map(True)
         self.group_messages: GroupMessageProtocol = GroupMessageProtocol(group_id=self.group_id,env=self.env_public)
         
+    def set_current_agent(self, agent_name:str):
+        if agent_name not in self.members_map:
+            raise ValueError(f"Member with name {agent_name} does not exist")
+        self.current_agent = agent_name
+        self._logger.log("info",f"manually set the current agent to {agent_name}")
+
     def add_member(self, member: Member,relation:Optional[Tuple[str,str]] = None):
         if member.name in self.members_map:
             raise ValueError(f"Member with name {member.name} already exists")
@@ -80,6 +83,7 @@ class Group:
             self._logger.log("info",f"current agent {member_name} is deleted, randomly select {self.current_agent} as the new current agent")
         self._logger.log("info",f"Successfully delete member {member_name}")
 
+    @retry(wait=wait_random_exponential(multiplier=1, max=40), stop=stop_after_attempt(3))
     def handoff(
             self,
             handoff_max_turns:int=3,
@@ -159,11 +163,13 @@ class Group:
             )
             return completion.choices[0].message.parsed.agent_name
     
-    def update_group_messages(self, message:Message):
-        if self.messages_max_keep is not None and len(self.group_messages.context) >= self.messages_max_keep:
-            self.group_messages.context.pop(0)
-            # persist the popped group_messages context to the storage(local file or database)
-        self.group_messages.context.append(message)
+    def update_group_messages(self, message:Union[Message,List[Message]]):
+        if isinstance(message,Message):
+            self.group_messages.context.append(message)
+        elif isinstance(message,list):
+            self.group_messages.context.extend(message)
+        else:
+            raise ValueError("message should be either Message or List[Message]")
 
     def reset_group_messages(self):
         # prsisit the whole group_messages context to the storage(local file or database) then reset the context
@@ -177,16 +183,16 @@ class Group:
             message_cut_off:int=3,
             agent:str = None # can mauanlly set the agent to call
     ) -> Message:
-        if agent in self.members_map:
-            self.current_agent = agent
-            self._logger.log("info",f"manually set the current agent to {agent}")
+        if agent:
+            self.set_current_agent(agent)
         else:
             self.handoff(next_speaker_select_mode=next_speaker_select_mode,model=model,include_current=include_current)
         message_send = self._build_send_message(self.group_messages,cut_off=message_cut_off,send_to=self.current_agent)
-        response = self._call_agent_func(self.current_agent,self.members_map[self.current_agent].access_token,message_send,self.group_id)
+        response = self.members_map[self.current_agent].do(message_send,model)
         self.update_group_messages(response)
         self._logger.log("info",f"Call agent {self.current_agent}",color="bold_green")
-        self._logger.log("info",f"Agent {self.current_agent} response: {response.result}",color="bold_purple")
+        for r in response:
+            self._logger.log("info",f"Agent {self.current_agent} response: {r.result}",color="bold_purple")
         return response
 
     def task(
@@ -194,26 +200,27 @@ class Group:
             task:str,
             strategy:Literal["sequential","hierarchical"] = "sequential",
             model:str="gpt-4o-mini",
+            entry_agent: Optional[str] = None,
         ):
         self.reset_group_messages()
         if strategy == "sequential":
-            return self._task_sequential(task,model)
+            return self._task_sequential(task,model,entry_agent)
         elif strategy == "hierarchical":
             return self._task_hierarchical(task,model)
         else:
             raise ValueError("strategy should be one of 'sequential' or 'hierarchical'")
         
-    def _task_sequential(self,task:str,model:str="gpt-4o-mini"):
-        if self.entry_agent is None:
-            raise ValueError("Entry agent is not defined,sequential task need to define the entry agent")
+    def _task_sequential(self,task:str,model:str="gpt-4o-mini",entry_agent: str = None):
+        if entry_agent is None:
+            raise ValueError("Entry agent is not defined, sequential task need to define the entry agent")
         step = 0
         self.update_group_messages(Message(sender="user",action="task",result=task))
         self._logger.log("info",f"Start task: {task}")
-        self.current_agent = self.entry_agent
+        self.current_agent = entry_agent
         while step < len(self.env.members):
+            self._logger.log("info",f"===> Step {step + 1}")
             self.call_agent(next_speaker_select_mode="order",model=model,include_current=False,message_cut_off=None)
             step += 1
-            self._logger.log("info",f"Step {step} by {self.current_agent}")
         self._logger.log("info","Task finished")
         return self.group_messages
 
@@ -352,34 +359,10 @@ class Group:
                     f"Decide who should be the next person to send a message. Choose from the members."
                 )
             
-        return prompt
-    
-    @staticmethod
-    def _call_agent_func(agent:str,token:str,query:str,group_id:str = None):
-
-        url = 'https://api.dify.ai/v1/chat-messages'
-        headers = {
-            'Authorization': 'Bearer {}'.format(token),
-            'Content-Type': 'application/json'
-        }
-
-        data = {
-            "inputs": {},
-            "query": query,
-            "response_mode": "blocking",
-            "conversation_id": "",
-            "user": group_id,
-            "files": []
-        }
-
-        response = requests.post(url, headers=headers, json=data)
-
-        message = Message(sender=agent, action="talk", result=response.json()['answer'])
-
-        return message        
+        return prompt     
 
     @staticmethod
-    def _build_send_message(gmp:GroupMessageProtocol,cut_off:int=None,send_to:str=None):
+    def _build_send_message(gmp:GroupMessageProtocol,cut_off:int=None,send_to:str=None) -> str:
         """ 
         This function builds a prompt for the agent to send a message in the group message protocol.
 
