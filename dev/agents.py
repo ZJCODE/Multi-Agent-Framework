@@ -279,20 +279,22 @@ class Group:
         base_model_map = {}
         if include_current:
             for k,v in self.env.relationships.items():
-                class_str = """
-class SelectFor{}IncludeCurrent(BaseModel):
-    agent_name:Literal[{}]
-""".format(k,",".join([f'"{i}"' for i in v+[k]]))
+                agent_name_list = ",".join([f'"{i}"' for i in v+[k]])
+                class_str = (
+                    f"class SelectFor{k}IncludeCurrent(BaseModel):\n"
+                    f"    agent_name:Literal[{agent_name_list}]\n"
+                )
                 exec(class_str)
                 base_model_map.update({k:eval(f"SelectFor{k}IncludeCurrent")})
         else:
             for k,v in self.env.relationships.items():
                 if len(v) == 0:
                     continue
-                class_str = """
-class SelectFor{}ExcludeCurrent(BaseModel):
-    agent_name:Literal[{}]
-    """.format(k,",".join([f'"{i}"' for i in v]))
+                agent_name_list = ",".join([f'"{i}"' for i in v])
+                class_str = (
+                    f"class SelectFor{k}ExcludeCurrent(BaseModel):\n"
+                    f"    agent_name:Literal[{agent_name_list}]\n"
+                )
                 exec(class_str)
                 base_model_map.update({k:eval(f"SelectFor{k}ExcludeCurrent")})
         return base_model_map
@@ -327,31 +329,25 @@ class SelectFor{}ExcludeCurrent(BaseModel):
         messages = "\n\n".join([f"```{m.sender}\n {m.result}\n```" for m in gmp.context[-cut_off:]])
 
         if use_tool:
-            prompt = f"""### Background Information
-
-                {gmp.env.description}
-
-                ### Messages
-
-                {messages}"""
+            prompt = (
+                f"### Background Information\n"
+                f"{gmp.env.description}\n\n"
+                f"### Messages\n"
+                f"{messages}\n\n"
+            )
         else:
             members_description = "\n\n".join([f"```{m.name}\n({m.role}):{m.description}\n```" for m in gmp.env.members])
-
-            prompt = f"""### Background Information
-
-                {gmp.env.description}
-
-                ### Members
-
-                {members_description}
-
-                ### Messages
-
-                {messages}
-
-                ### Task
-
-                Consider the Background Information and the previous messages. Decide who should be the next person to send a message,choose from members."""
+            prompt = (
+                    f"### Background Information\n"
+                    f"{gmp.env.description}\n\n"
+                    f"### Members\n"
+                    f"{members_description}\n\n"
+                    f"### Messages\n"
+                    f"{messages}\n\n"
+                    f"### Task\n"
+                    f"Consider the Background Information and the previous messages. "
+                    f"Decide who should be the next person to send a message. Choose from the members."
+                )
             
         return prompt
     
@@ -402,24 +398,17 @@ class SelectFor{}ExcludeCurrent(BaseModel):
             previous_messages = "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in gmp.context[-cut_off:] if m.sender == send_to])
             others_messages = "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in gmp.context[-cut_off:] if m.sender != send_to])
 
-        prompt = f"""### Background Information
-
-            {gmp.env.description}
-
-            ### Members
-
-            {members_description}
-
-            ### Your Previous Message
-
-            {previous_messages}
-
-            ### Other people's Messages
-
-            {others_messages}
-
-            ### Task
-
-            Consider the Background Information and the previous messages. Now, it's your turn."""
+        prompt = (
+            f"### Background Information\n"
+            f"{gmp.env.description}\n\n"
+            f"### Members\n"
+            f"{members_description}\n\n"
+            f"### Your Previous Message\n"
+            f"{previous_messages}\n\n"
+            f"### Other people's Messages\n"
+            f"{others_messages}\n\n"
+            f"### Task\n"
+            f"Consider the Background Information and the previous messages. Now, it's your turn."
+        )
 
         return prompt
