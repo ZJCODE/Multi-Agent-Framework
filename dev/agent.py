@@ -35,9 +35,12 @@ class Agent(Member):
         if self.dify_access_token:
             self._logger.log(level="info", message=f"Calling Dify agent",color="bold_blue")
             response = self._call_dify_http_agent(self.dify_access_token, message)
-        else:
+        elif isinstance(self.model_client,OpenAI):
             self._logger.log(level="info", message=f"Calling OpenAI agent",color="bold_blue")
             response = self._call_openai_agent(message,model)
+        else:
+            self._logger.log(level="error", message=f"No model client or Dify access token provided for agent {self.name}.",color="red")
+            raise ValueError("No model client or Dify access token provided, please provide one for agent {self.name}.")
         return response
 
     def _call_openai_agent(self,query:str,model:str="gpt-4o-mini") -> List[Message]:
