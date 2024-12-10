@@ -33,10 +33,10 @@ class Agent(Member):
     
     def do(self, message: str,model:str="gpt-4o-mini") -> List[Message]:
         if self.dify_access_token:
-            self._logger.log(level="info", message=f"Calling Dify agent")
+            self._logger.log(level="info", message=f"Calling Dify agent",color="bold_blue")
             response = self._call_dify_http_agent(self.dify_access_token, message)
         else:
-            self._logger.log(level="info", message=f"Calling OpenAI agent")
+            self._logger.log(level="info", message=f"Calling OpenAI agent",color="bold_blue")
             response = self._call_openai_agent(message,model)
         return response
 
@@ -78,7 +78,6 @@ class Agent(Member):
         for tool_call in response_message.tool_calls:
             tool = self.tools_map[tool_call.function.name]
             tool_args = json.loads(tool_call.function.arguments)
-            self._logger.log(level="info", message=f"Calling tool {tool_call.function.name} with arguments {tool_args}")
             tool_result = tool(**tool_args)
             tool_call_result = (
                 f"By using the tool '{tool_call.function.name}' with the arguments {tool_args}, "
@@ -87,7 +86,6 @@ class Agent(Member):
             res.append(Message(sender=self.name, action="tool", result=tool_call_result))
             messages.append({"role": "system", "content": tool_call_result})
 
-        self._logger.log(level="info", message=f"Summary tool call responses")
         response = self.model_client.chat.completions.create(
                 model=model,
                 messages=messages,
@@ -167,12 +165,17 @@ if __name__ == "__main__":
     model_client = OpenAI()
 
     agent = Agent(name="Alice", role="Manager", 
-                  description="Alice is the manager of the team.", model_client=model_client,
-                  tools=[get_weather,get_stock_price])
+                  description="Alice is the manager of the team.",
+                  model_client=model_client,
+                  tools=[get_weather,get_stock_price],
+                  verbose=True)
+    
     print(agent.do("What is the weather today in hangzhou and the stock price of apple?"))
 
 
     agent2 = Agent(name="agent1", role="Mathematician", 
-                   description="Transfer to me if you need help with math.", dify_access_token=os.environ.get("AGENT1_ACCESS_TOKEN"))
+                   description="Transfer to me if you need help with math.", 
+                   dify_access_token=os.environ.get("AGENT1_ACCESS_TOKEN"),
+                   verbose=True)
     
     print(agent2.do("What is the integral of x^2?"))
