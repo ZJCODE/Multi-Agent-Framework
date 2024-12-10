@@ -182,7 +182,7 @@ class Group:
             model:str="gpt-4o-mini",
             message_cut_off:int=3,
             agent:str = None # can mauanlly set the agent to call
-    ) -> Message:
+    ) -> List[Message]:
         if agent:
             self.set_current_agent(agent)
         else:
