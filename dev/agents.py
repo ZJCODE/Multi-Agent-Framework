@@ -205,7 +205,7 @@ class Group:
         
     def _task_sequential(self,task:str,model:str="gpt-4o-mini"):
         if self.entry_agent is None:
-            raise ValueError("Entry agent is not defined")
+            raise ValueError("Entry agent is not defined,sequential task need to define the entry agent")
         step = 0
         self.update_group_messages(Message(sender="user",action="task",result=task))
         self._logger.log("info",f"Start task: {task}")
