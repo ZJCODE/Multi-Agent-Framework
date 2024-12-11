@@ -1,12 +1,10 @@
 import graphviz
 from openai import OpenAI
 import random
-import yaml
 import uuid
 import itertools
 from pydantic import BaseModel
 from tenacity import retry, wait_random_exponential, stop_after_attempt
-import requests
 from typing import Dict, Optional, Literal, Tuple,List,Union
 from utilities.logger import Logger
 
@@ -42,7 +40,8 @@ class Group:
 
     def add_member(self, member: Member,relation:Optional[Tuple[str,str]] = None):
         if member.name in self.members_map:
-            raise ValueError(f"Member with name {member.name} already exists")
+            self._logger.log("warning",f"Member with name {member.name} already exists",color="red")
+            return
         self.env.members.append(member)
         self.members_map[member.name] = member
         self.member_iterator = itertools.cycle(self.env.members)
@@ -53,11 +52,11 @@ class Group:
         self.group_messages.env = self.env_public
         self._logger.log("info",f"Succesfully add member {member.name}")
 
-
     def delete_member(self, member_name:str):
         # if current agent is the one to be deleted, handoff to the next agent by order
         if member_name not in self.members_map:
-            raise ValueError(f"Member with name {member_name} does not exist")
+            self._logger.log("warning",f"Member with name {member_name} does not exist",color="red")
+            return
         self.env.members = [m for m in self.env.members if m.name != member_name]
         self.members_map.pop(member_name)
         self.member_iterator = itertools.cycle(self.env.members)
@@ -81,30 +80,20 @@ class Group:
             include_current:bool = True
     )->str:
         
+        if self.fully_connected or next_speaker_select_mode in ["order","random"]:
+            handoff_max_turns = 1
+
         visited_agent = set([self.current_agent])
         next_agent = self.handoff_one_turn(next_speaker_select_mode, model, include_current)
 
-        if self.current_agent != next_agent:
-            self._logger.log("info",f"handoff from {self.current_agent} to {next_agent} by using {next_speaker_select_mode} mode")
-        else:
-            self._logger.log("info",f"no handoff needed, stay with {self.current_agent} judge by {next_speaker_select_mode} mode")
-            
-        if self.fully_connected or next_speaker_select_mode in ["order","random"] or handoff_max_turns == 1:
-            self.current_agent = next_agent
-            return self.current_agent
-        # recursive handoff until the next agent is same as the current agent (for auto and auto2 with handoff_max_turns > 1)
-        visited_agent.add(next_agent)
-        next_next_agent =  self.handoff_one_turn(next_speaker_select_mode,model,True)
-        while next_next_agent != next_agent and handoff_max_turns > 1:
-            self._logger.log("info",f"handoff from {next_agent} to {next_next_agent} by using {next_speaker_select_mode} mode")
-            if next_next_agent in visited_agent:
+        while next_agent != self.current_agent and handoff_max_turns > 0:
+            if next_agent in visited_agent:
                 break 
-            next_agent = next_next_agent
+            self._logger.log("info",f"handoff from {self.current_agent} to {next_agent} by using {next_speaker_select_mode} mode")
             self.current_agent = next_agent
-            next_next_agent = self.handoff_one_turn(next_speaker_select_mode,model,True)
+            visited_agent.add(next_agent)
+            next_agent = self.handoff_one_turn(next_speaker_select_mode,model,True)
             handoff_max_turns -= 1
-
-        self.current_agent = next_agent
 
         return self.current_agent
 
