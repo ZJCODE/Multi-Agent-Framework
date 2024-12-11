@@ -30,8 +30,7 @@ class Group:
         self.member_iterator = itertools.cycle(self.env.members)
         self._rectify_relationships()
         self._set_env_public()
-        self.next_choice_response_format_map: Dict[str, BaseModel] = self._build_next_choice_response_format_map(False)
-        self.next_choice_response_format_map_include_current: Dict[str, BaseModel] = self._build_next_choice_response_format_map(True)
+        self._update_response_format_maps()
         self.group_messages: GroupMessageProtocol = GroupMessageProtocol(group_id=self.group_id,env=self.env_public)
         
     def set_current_agent(self, agent_name:str):
@@ -40,6 +39,7 @@ class Group:
         self.current_agent = agent_name
         self._logger.log("info",f"manually set the current agent to {agent_name}")
 
+
     def add_member(self, member: Member,relation:Optional[Tuple[str,str]] = None):
         if member.name in self.members_map:
             raise ValueError(f"Member with name {member.name} already exists")
@@ -47,18 +47,12 @@ class Group:
         self.members_map[member.name] = member
         self.member_iterator = itertools.cycle(self.env.members)
         self._rectify_relationships()
-        if not self.fully_connected and relation is not None:
-            for r in relation:
-                if r[0] not in self.env.relationships:
-                    raise ValueError(f"Member with name {r[0]} does not exist")
-                if member.name not in r:
-                    continue
-                self.env.relationships[r[0]].append(r[1])
+        self._add_relationship(member,relation)
         self._set_env_public()
-        self.next_choice_response_format_map = self._build_next_choice_response_format_map(False)
-        self.next_choice_response_format_map_include_current = self._build_next_choice_response_format_map(True)
+        self._update_response_format_maps()
         self.group_messages.env = self.env_public
         self._logger.log("info",f"Succesfully add member {member.name}")
+
 
     def delete_member(self, member_name:str):
         # if current agent is the one to be deleted, handoff to the next agent by order
@@ -68,14 +62,9 @@ class Group:
         self.members_map.pop(member_name)
         self.member_iterator = itertools.cycle(self.env.members)
         self._rectify_relationships()
-        if not self.fully_connected:
-            self.env.relationships.pop(member_name)
-            for k,v in self.env.relationships.items():
-                if member_name in v:
-                    v.remove(member_name)
+        self._remove_relationships(member_name)
         self._set_env_public()
-        self.next_choice_response_format_map = self._build_next_choice_response_format_map(False)
-        self.next_choice_response_format_map_include_current = self._build_next_choice_response_format_map(True)
+        self._update_response_format_maps()
         self.group_messages.env = self.env_public
 
         if self.current_agent == member_name:
@@ -91,12 +80,15 @@ class Group:
             model:str="gpt-4o-mini",
             include_current:bool = True
     )->str:
+        
         visited_agent = set([self.current_agent])
         next_agent = self.handoff_one_turn(next_speaker_select_mode, model, include_current)
+
         if self.current_agent != next_agent:
             self._logger.log("info",f"handoff from {self.current_agent} to {next_agent} by using {next_speaker_select_mode} mode")
         else:
             self._logger.log("info",f"no handoff needed, stay with {self.current_agent} judge by {next_speaker_select_mode} mode")
+            
         if self.fully_connected or next_speaker_select_mode in ["order","random"] or handoff_max_turns == 1:
             self.current_agent = next_agent
             return self.current_agent
@@ -111,7 +103,7 @@ class Group:
             self.current_agent = next_agent
             next_next_agent = self.handoff_one_turn(next_speaker_select_mode,model,True)
             handoff_max_turns -= 1
-        self
+
         self.current_agent = next_agent
 
         return self.current_agent
@@ -134,35 +126,6 @@ class Group:
         else:
             raise ValueError("next_speaker_select_mode should be one of 'order', 'auto', 'auto2', 'random'")
 
-    def _select_next_agent_auto(self, model: str, include_current: bool, use_tool: bool) -> str:
-
-        messages = [{"role": "system", "content": "Decide who should be the next person to talk. Transfer the conversation to the next person."}]
-        handoff_message = self._build_handoff_message(self.group_messages, cut_off=1, use_tool=use_tool) # notice the cut_off setting
-        messages.extend([{"role": "user", "content": handoff_message}])
-
-        # if use_tool is True, the agent will be selected based on the tool call [auto]
-        if use_tool:
-            handoff_tools = self._build_current_agent_handoff_tools(include_current)
-            response = self.model_client.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=0.0,
-                tools=handoff_tools,
-                tool_choice="required"
-            )
-            return response.choices[0].message.tool_calls[0].function.name
-        # if use_tool is False, the agent will be selected based on the response format [auto2]
-        else:
-            response_format = self.next_choice_response_format_map_include_current[self.current_agent] if include_current else self.next_choice_response_format_map[self.current_agent]
-            completion = self.model_client.beta.chat.completions.parse(
-                model=model,
-                messages=messages,
-                temperature=0.0,
-                response_format=response_format,
-                max_tokens=10
-            )
-            return completion.choices[0].message.parsed.agent_name
-    
     def update_group_messages(self, message:Union[Message,List[Message]]):
         if isinstance(message,Message):
             self.group_messages.context.append(message)
@@ -210,20 +173,6 @@ class Group:
         else:
             raise ValueError("strategy should be one of 'sequential' or 'hierarchical'")
         
-    def _task_sequential(self,task:str,model:str="gpt-4o-mini",entry_agent: str = None):
-        if entry_agent is None:
-            raise ValueError("Entry agent is not defined, sequential task need to define the entry agent")
-        step = 0
-        self.update_group_messages(Message(sender="user",action="task",result=task))
-        self._logger.log("info",f"Start task: {task}")
-        self.current_agent = entry_agent
-        while step < len(self.env.members):
-            self._logger.log("info",f"===> Step {step + 1}")
-            self.call_agent(next_speaker_select_mode="order",model=model,include_current=False,message_cut_off=None)
-            step += 1
-        self._logger.log("info","Task finished")
-        return self.group_messages
-
     def draw_relations(self):
         """ 
         Returns:
@@ -239,17 +188,6 @@ class Group:
                 dot.edge(m1, m)
         return dot.pipe()
     
-
-    def _read_env_from_file(self, env_file:str):
-        with open(env_file, 'r') as file:
-            env_data = yaml.safe_load(file)
-            env = Env(
-                description=env_data['description'],
-                members=[Member(**member) for member in env_data['members']],
-                relationships=env_data.get('relationships', None)
-            )
-        return env
-
     def _rectify_relationships(self):
         """
         Rectify the relationships between the agents.
@@ -269,6 +207,44 @@ class Group:
             for m in self.env.members:
                 if m.name not in self.env.relationships:
                     self.env.relationships[m.name] = []
+
+    def _add_relationship(self,member:Member,relation:Optional[Tuple[str,str]] = None):
+        """
+        Add a relationship for the new member.
+
+        Args:
+            member (Member): The member to add the relationship for.
+            relation (Optional[Tuple[str, str]]): The relationship tuple. Defaults to None.
+        """
+        if not self.fully_connected and relation is not None:
+            for r in relation:
+                if r[0] not in self.env.relationships:
+                    raise ValueError(f"Member with name {r[0]} does not exist")
+                if member.name not in r:
+                    continue
+                self.env.relationships[r[0]].append(r[1])
+
+    def _remove_relationships(self, member_name: str):
+        """
+        Remove relationships for the deleted member.
+
+        Args:
+            member_name (str): The name of the member to remove relationships for.
+        """
+        if not self.fully_connected:
+            self.env.relationships.pop(member_name, None)
+            for k, v in self.env.relationships.items():
+                if member_name in v:
+                    v.remove(member_name)
+
+
+    def _update_response_format_maps(self):
+        """
+        Update the next choice response format maps.
+        """
+        self.next_choice_response_format_map: Dict[str, BaseModel] = self._build_next_choice_response_format_map(False)
+        self.next_choice_response_format_map_include_current: Dict[str, BaseModel] = self._build_next_choice_response_format_map(True)
+
 
     def _set_env_public(self):
         self.env_public = Env(
@@ -308,7 +284,50 @@ class Group:
                 exec(class_str)
                 response_format_map.update({k:eval(f"SelectFor{k}ExcludeCurrent")})
         return response_format_map
-    
+
+    def _select_next_agent_auto(self, model: str, include_current: bool, use_tool: bool) -> str:
+
+        messages = [{"role": "system", "content": "Decide who should be the next person to talk. Transfer the conversation to the next person."}]
+        handoff_message = self._build_handoff_message(self.group_messages, cut_off=1, use_tool=use_tool) # notice the cut_off setting
+        messages.extend([{"role": "user", "content": handoff_message}])
+
+        # if use_tool is True, the agent will be selected based on the tool call [auto]
+        if use_tool:
+            handoff_tools = self._build_current_agent_handoff_tools(include_current)
+            response = self.model_client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=0.0,
+                tools=handoff_tools,
+                tool_choice="required"
+            )
+            return response.choices[0].message.tool_calls[0].function.name
+        # if use_tool is False, the agent will be selected based on the response format [auto2]
+        else:
+            response_format = self.next_choice_response_format_map_include_current[self.current_agent] if include_current else self.next_choice_response_format_map[self.current_agent]
+            completion = self.model_client.beta.chat.completions.parse(
+                model=model,
+                messages=messages,
+                temperature=0.0,
+                response_format=response_format,
+                max_tokens=10
+            )
+            return completion.choices[0].message.parsed.agent_name
+
+    def _task_sequential(self,task:str,model:str="gpt-4o-mini",entry_agent: str = None):
+        if entry_agent is None:
+            raise ValueError("Entry agent is not defined, sequential task need to define the entry agent")
+        step = 0
+        self.update_group_messages(Message(sender="user",action="task",result=task))
+        self._logger.log("info",f"Start task: {task}")
+        self.current_agent = entry_agent
+        while step < len(self.env.members):
+            self._logger.log("info",f"===> Step {step + 1}")
+            self.call_agent(next_speaker_select_mode="order",model=model,include_current=False,message_cut_off=None)
+            step += 1
+        self._logger.log("info","Task finished")
+        return self.group_messages
+
     @staticmethod
     def _build_agent_handoff_tool_function(agent: Member):
         """
