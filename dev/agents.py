@@ -178,12 +178,24 @@ class Group:
 
         return response
 
+
+    def talk(
+            self, 
+            message:str,
+            model:str="gpt-4o-mini",
+            message_cut_off:int=3,
+            agent:str = None # can mauanlly set the agent to call
+        )-> List[Message]:
+        self.user_input(message)
+        response = self.call_agent("auto2",include_current=True,model=model,message_cut_off=message_cut_off,agent=agent)
+        return response
+
     def task(
             self,
             task:str,
             strategy:Literal["sequential","hierarchical","auto"] = "auto",
             model:str="gpt-4o-mini"
-        ):
+        ) -> List[Message]:
         """
         Execute a task with the given strategy.
 
@@ -350,9 +362,9 @@ class Group:
         for member in self.env.members:
             step += 1
             self._logger.log("info",f"===> Step {step} for {member.name}")
-            self.call_agent(agent=member.name,model=model,include_current=False,message_cut_off=None)
+            response = self.call_agent(agent=member.name,model=model,include_current=False,message_cut_off=None)
         self._logger.log("info","Task finished")
-        return self.group_messages
+        return response
 
     def _task_auto(self,task:str,model:str="gpt-4o-mini"):
         tasks = self._planning(task,model)
@@ -362,10 +374,9 @@ class Group:
             step += 1
             self.user_input(t.task,action="task")
             self._logger.log("info",f"===> Step {step} for {t.agent_name}")
-            self.current_agent = t.agent_name
-            self.call_agent(agent=t.agent_name,model=model,include_current=False,message_cut_off=None)
+            response = self.call_agent(agent=t.agent_name,model=model,include_current=False,message_cut_off=None)
         self._logger.log("info","Task finished")
-        return self.group_messages
+        return response
 
     def _planning(self,task:str,model:str="gpt-4o-mini"):
         """
