@@ -142,9 +142,12 @@ class Group:
         # prsisit the whole group_messages context to the storage(local file or database) then reset the context
         self.group_messages.context = []
 
-    def user_input(self, message:str,action:str="talk"):
+    def user_input(self, message:str,action:str="talk",alias = None):
         self.update_group_messages(Message(sender="user",action=action,result=message))
-        self._logger.log("info",f"User input ({action}): {message}",color="bold_blue")
+        if alias:
+            self._logger.log("info",f"[{alias}] input ({action}): {message}",color="bold_blue")
+        else:
+            self._logger.log("info",f"User input ({action}): {message}",color="bold_blue")
 
     def call_agent(
             self,
@@ -372,7 +375,7 @@ class Group:
         self._logger.log("info",f"Start task: {task}")
         for t in tasks:
             step += 1
-            self.user_input(t.task,action="task")
+            self.user_input(t.task,action="task",alias="Sub-Task")
             self._logger.log("info",f"===> Step {step} for {t.agent_name}")
             response = self.call_agent(agent=t.agent_name,model=model,include_current=False,message_cut_off=None)
         self._logger.log("info","Task finished")
