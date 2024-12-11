@@ -9,6 +9,7 @@ from typing import Dict, Optional, Literal, Tuple,List,Union
 from utilities.logger import Logger
 
 from protocol import Member, Env, Message, GroupMessageProtocol
+from agent import Agent
 
 class Group:
     def __init__(
@@ -16,7 +17,8 @@ class Group:
         env: Env,
         model_client: OpenAI,
         group_id: Optional[str] = None,
-        verbose: bool = False
+        verbose: bool = False,
+        manager:Union[Agent,bool] = None # if manager is True, the group will have a default manager or you can pass a Agent instance
     ):
         self._logger = Logger(verbose=verbose)
         self.fully_connected = False # will be updated in _rectify_relationships
@@ -30,7 +32,8 @@ class Group:
         self._set_env_public()
         self._update_response_format_maps()
         self.group_messages: GroupMessageProtocol = GroupMessageProtocol(group_id=self.group_id,env=self.env_public)
-        
+        self._create_manager(manager)
+    
     def set_current_agent(self, agent_name:str):
         if agent_name not in self.members_map:
             raise ValueError(f"Member with name {agent_name} does not exist")
@@ -127,6 +130,10 @@ class Group:
         # prsisit the whole group_messages context to the storage(local file or database) then reset the context
         self.group_messages.context = []
 
+    def user_input(self, message:str):
+        self.update_group_messages(Message(sender="user",action="talk",result=message))
+        self._logger.log("info",f"User input: {message}",color="bold_blue")
+
     def call_agent(
             self,
             next_speaker_select_mode:Literal["order","auto","auto2","random"]="auto",
@@ -145,6 +152,19 @@ class Group:
         self._logger.log("info",f"Call agent {self.current_agent}",color="bold_green")
         for r in response:
             self._logger.log("info",f"Agent {self.current_agent} response: {r.result}",color="bold_purple")
+        return response
+
+    def call_manager(self,model:str="gpt-4o-mini",message_cut_off:int=3) -> List[Message]:
+        if not self.manager:
+            self._logger.log("warning","No manager in the group , you can set the manager in Group initialization",color="red")
+            return
+        message_send = self._build_send_message(self.group_messages,cut_off=message_cut_off,send_to=self.manager.name)
+        response = self.manager.do(message_send,model)
+        self.update_group_messages(response)
+        self._logger.log("info",f"Call manager {self.manager.name}",color="bold_green")
+        for r in response:
+            self._logger.log("info",f"Manager {self.manager.name} response: {r.result}",color="bold_purple")
+
         return response
 
     def task(
@@ -317,6 +337,20 @@ class Group:
         self._logger.log("info","Task finished")
         return self.group_messages
 
+    def _create_manager(self,manager:Union[Agent,bool]):
+        # planner and moderator
+        if manager == True:
+            self.manager = Agent(name=f"GroupManager-{self.group_id}",
+                                 role="Manager",
+                                 description="The manager of the group",
+                                 backstory="The manager is responsible for planning and moderating the group conversation",
+                                 model_client=self.model_client,
+                                 verbose=self._logger.verbose)
+            self._logger.log("info","Create a default manager for the group")
+        elif isinstance(manager,Agent):
+            self.manager = manager
+        else:
+            self.manager = None
     @staticmethod
     def _build_agent_handoff_tool_function(agent: Member):
         """

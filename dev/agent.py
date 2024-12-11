@@ -12,6 +12,7 @@ class Agent(Member):
             name: str, 
             role: str, 
             description: str = None,
+            backstory: str = None, # context and personality of the agent more detailed than description
             model_client: Union[OpenAI, AsyncOpenAI] = None,
             tools: List["function"] = None, # List of Python Functions
             dify_access_token: str = None,
@@ -19,6 +20,7 @@ class Agent(Member):
             ):
         super().__init__(name, role, description)
         self._logger = Logger(verbose=verbose)
+        self.backstory = backstory
         self.model_client = model_client
         self.tools = tools
         self.dify_access_token = dify_access_token
@@ -33,10 +35,10 @@ class Agent(Member):
     
     def do(self, message: str,model:str="gpt-4o-mini") -> List[Message]:
         if self.dify_access_token:
-            self._logger.log(level="info", message=f"Calling Dify agent",color="bold_blue")
+            self._logger.log(level="info", message=f"Calling Dify agent",color="bold_green")
             response = self._call_dify_http_agent(self.dify_access_token, message)
         elif isinstance(self.model_client,OpenAI):
-            self._logger.log(level="info", message=f"Calling OpenAI agent",color="bold_blue")
+            self._logger.log(level="info", message=f"Calling OpenAI agent",color="bold_green")
             response = self._call_openai_agent(message,model)
         else:
             self._logger.log(level="error", message=f"No model client or Dify access token provided for agent {self.name}.",color="red")
@@ -58,6 +60,8 @@ class Agent(Member):
             f"## Role:\n {self.role}\n\n"
             f"## Description:\n {self.description}\n\n"
         )
+        if self.backstory:
+            instructions += f"## Backstory:\n {self.backstory}\n\n"
         system_message = [{"role": "system", "content": instructions}]
         messages = system_message + [{"role": "user", "content": query}]
 
