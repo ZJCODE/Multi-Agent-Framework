@@ -42,6 +42,13 @@ class Group:
 
 
     def add_member(self, member: Member,relation:Optional[Tuple[str,str]] = None):
+        """
+        Add a new member to the group.
+
+        Args:
+            member (Member): The member to add to the group.
+            relation (Optional[Tuple[str, str]]): The relationship tuple. Defaults to None.
+        """
         if member.name in self.members_map:
             self._logger.log("warning",f"Member with name {member.name} already exists",color="red")
             return
@@ -56,7 +63,12 @@ class Group:
         self._logger.log("info",f"Succesfully add member {member.name}")
 
     def delete_member(self, member_name:str):
-        # if current agent is the one to be deleted, handoff to the next agent by order
+        """
+        Delete a member from the group.
+
+        Args:
+            member_name (str): The name of the member to delete.
+        """
         if member_name not in self.members_map:
             self._logger.log("warning",f"Member with name {member_name} does not exist",color="red")
             return
@@ -130,9 +142,9 @@ class Group:
         # prsisit the whole group_messages context to the storage(local file or database) then reset the context
         self.group_messages.context = []
 
-    def user_input(self, message:str):
-        self.update_group_messages(Message(sender="user",action="talk",result=message))
-        self._logger.log("info",f"User input: {message}",color="bold_blue")
+    def user_input(self, message:str,action:str="talk"):
+        self.update_group_messages(Message(sender="user",action=action,result=message))
+        self._logger.log("info",f"User input ({action}): {message}",color="bold_blue")
 
     def call_agent(
             self,
@@ -149,7 +161,6 @@ class Group:
         message_send = self._build_send_message(self.group_messages,cut_off=message_cut_off,send_to=self.current_agent)
         response = self.members_map[self.current_agent].do(message_send,model)
         self.update_group_messages(response)
-        self._logger.log("info",f"Call agent {self.current_agent}",color="bold_green")
         for r in response:
             self._logger.log("info",f"Agent {self.current_agent} response: {r.result}",color="bold_purple")
         return response
@@ -170,17 +181,26 @@ class Group:
     def task(
             self,
             task:str,
-            strategy:Literal["sequential","hierarchical"] = "sequential",
-            model:str="gpt-4o-mini",
-            entry_agent: Optional[str] = None,
+            strategy:Literal["sequential","hierarchical","auto"] = "auto",
+            model:str="gpt-4o-mini"
         ):
+        """
+        Execute a task with the given strategy.
+
+        Args:
+            task (str): The task to execute.
+            strategy (Literal["sequential","hierarchical","auto"], optional): The strategy to use for the task. Defaults to "auto".
+            model (str, optional): The model to use for the task. Defaults to "gpt-4o-mini".
+        """
         self.reset_group_messages()
         if strategy == "sequential":
-            return self._task_sequential(task,model,entry_agent)
+            return self._task_sequential(task,model)
         elif strategy == "hierarchical":
             return self._task_hierarchical(task,model)
+        elif strategy == "auto":
+            return self._task_auto(task,model)
         else:
-            raise ValueError("strategy should be one of 'sequential' or 'hierarchical'")
+            raise ValueError("strategy should be one of 'sequential' or 'hierarchical' or 'auto'")
         
     def draw_relations(self):
         """ 
@@ -323,19 +343,77 @@ class Group:
             )
             return completion.choices[0].message.parsed.agent_name
 
-    def _task_sequential(self,task:str,model:str="gpt-4o-mini",entry_agent: str = None):
-        if entry_agent is None:
-            raise ValueError("Entry agent is not defined, sequential task need to define the entry agent")
+    def _task_sequential(self,task:str,model:str="gpt-4o-mini"):
+        self.user_input(task,action="task")
         step = 0
-        self.update_group_messages(Message(sender="user",action="task",result=task))
         self._logger.log("info",f"Start task: {task}")
-        self.current_agent = entry_agent
-        while step < len(self.env.members):
-            self._logger.log("info",f"===> Step {step + 1}")
-            self.call_agent(next_speaker_select_mode="order",model=model,include_current=False,message_cut_off=None)
+        for member in self.env.members:
             step += 1
+            self._logger.log("info",f"===> Step {step} for {member.name}")
+            self.call_agent(agent=member.name,model=model,include_current=False,message_cut_off=None)
         self._logger.log("info","Task finished")
         return self.group_messages
+
+    def _task_auto(self,task:str,model:str="gpt-4o-mini"):
+        tasks = self._planning(task,model)
+        step = 0
+        self._logger.log("info",f"Start task: {task}")
+        for t in tasks:
+            step += 1
+            self.user_input(t.task,action="task")
+            self._logger.log("info",f"===> Step {step} for {t.agent_name}")
+            self.current_agent = t.agent_name
+            self.call_agent(agent=t.agent_name,model=model,include_current=False,message_cut_off=None)
+        self._logger.log("info","Task finished")
+        return self.group_messages
+
+    def _planning(self,task:str,model:str="gpt-4o-mini"):
+        """
+        Plan the task and assign sub-tasks to the members.
+
+        Args:
+            task (str): The task to plan.
+            model (str): The model to use for planning.
+        """
+
+        member_list = ",".join([f'"{m.name}"' for m in self.env.members])
+
+        class_str = (
+            f"class Task(BaseModel):\n"
+            f"    agent_name:Literal[{member_list}]\n"
+            f"    task:str\n"
+            f""
+            f"class Tasks(BaseModel):\n"
+            f"    tasks:List[Task]\n"
+        )
+        
+        exec(class_str, globals())
+
+        response_format = eval("Tasks")
+
+        members_description = "\n".join([f"- {m.name} ({m.role})" + (f" [tools available: {', '.join([x.__name__ for x in m.tools])}]" if m.tools else "") for m in self.env.members])
+
+        prompt = (
+            f"### Background Information\n"
+            f"{self.env.description}\n\n"
+            f"### Members\n"
+            f"{members_description}\n\n"
+            f"### Task\n"
+            f"{task}\n\n"
+            f"Consider the Background Information and the members" 
+            f"Generate a sequence of sub-tasks based on the task and assign them to the members in best order."
+        )
+
+        messages = [{"role": "system", "content": "You are a experienced planner.Plan the task and assign sub-tasks to the members."}]
+        messages.extend([{"role": "user", "content": prompt}])
+        
+        completion = self.model_client.beta.chat.completions.parse(
+            model=model,
+            messages=messages,
+            temperature=0.0,
+            response_format=response_format,
+        )
+        return completion.choices[0].message.parsed.tasks
 
     def _create_manager(self,manager:Union[Agent,bool]):
         # planner and moderator
@@ -351,6 +429,7 @@ class Group:
             self.manager = manager
         else:
             self.manager = None
+
     @staticmethod
     def _build_agent_handoff_tool_function(agent: Member):
         """
