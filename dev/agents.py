@@ -652,8 +652,12 @@ class Group:
             f"Consider the Background Information and the previous messages. Now, it's your turn."
         )
 
-        if gmp.context[-1].sender == "user" and gmp.context[-1].action == "task":
-            current_user_task = gmp.context[-1].result
-            prompt += f"\n\n### Current Task\n{current_user_task}\n\n"
+        if gmp.context[-1].sender == "user":
+            if gmp.context[-1].action == "task":
+                current_user_task = gmp.context[-1].result
+                prompt += f"\n\n### Current Task\n{current_user_task}\n\n"
+            elif gmp.context[-1].action == "talk":
+                current_user_message = gmp.context[-1].result
+                prompt += f"\n\n### Current User's Input\n{current_user_message}\n\n"
 
         return prompt
