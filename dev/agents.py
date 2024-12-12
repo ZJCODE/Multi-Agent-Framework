@@ -165,7 +165,7 @@ class Group:
         response = self.members_map[self.current_agent].do(message_send,model)
         self.update_group_messages(response)
         for r in response:
-            self._logger.log("info",f"Agent {self.current_agent} response: {r.result}",color="bold_purple")
+            self._logger.log("info",f"Agent {self.current_agent} response:\n {r.result}",color="bold_purple")
         return response
 
     def call_manager(self,model:str="gpt-4o-mini",message_cut_off:int=3) -> List[Message]:
