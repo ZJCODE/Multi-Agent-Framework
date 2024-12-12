@@ -512,6 +512,7 @@ class Group:
         
         members_description = "\n".join([f"- {m.name} ({m.role})" for m in gmp.env.members])
 
+
         if cut_off is None:
             previous_messages = "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in gmp.context if m.sender == send_to])
             others_messages = "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in gmp.context if m.sender != send_to])
@@ -531,5 +532,9 @@ class Group:
             f"### Task\n"
             f"Consider the Background Information and the previous messages. Now, it's your turn."
         )
+
+        if gmp.context[-1].sender == "user" and gmp.context[-1].action == "task":
+            current_user_task = gmp.context[-1].result
+            prompt += f"\n\n### Current Task\n{current_user_task}\n\n"
 
         return prompt
