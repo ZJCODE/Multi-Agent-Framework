@@ -90,11 +90,19 @@ class Group:
     def handoff(
             self,
             handoff_max_turns:int=3,
-            next_speaker_select_mode:Literal["order","auto","auto2","random"]="auto",
+            next_speaker_select_mode:Literal["order","auto","auto2","random"]="auto2",
             model:str="gpt-4o-mini",
             include_current:bool = True
     )->str:
-        
+        """
+        Handoff the conversation to the next agent.
+
+        Args:
+            handoff_max_turns (int): The maximum number of turns to handoff. Defaults to 3.
+            next_speaker_select_mode (Literal["order","auto","auto2","random"]): The mode to select the next speaker. Defaults to "auto2".
+            model (str): The model to use for the handoff. Defaults to "gpt-4o-mini".
+            include_current (bool): Whether to include the current agent in the handoff. Defaults to True.
+        """
         if self.fully_connected or next_speaker_select_mode in ["order","random"]:
             handoff_max_turns = 1
 
@@ -139,10 +147,15 @@ class Group:
             raise ValueError("message should be either Message or List[Message]")
 
     def reset_group_messages(self):
-        # prsisit the whole group_messages context to the storage(local file or database) then reset the context
+        """
+        Reset the group messages.
+        """
         self.group_messages.context = []
 
     def user_input(self, message:str,action:str="talk",alias = None):
+        """
+        Record the user input.
+        """
         self.update_group_messages(Message(sender="user",action=action,result=message))
         if alias:
             self._logger.log("info",f"[{alias}] input ({action}): {message}",color="bold_blue")
@@ -151,12 +164,22 @@ class Group:
 
     def call_agent(
             self,
-            next_speaker_select_mode:Literal["order","auto","auto2","random"]="auto",
+            next_speaker_select_mode:Literal["order","auto","auto2","random"]="auto2",
             include_current:bool = True,
             model:str="gpt-4o-mini",
             message_cut_off:int=3,
             agent:str = None # can mauanlly set the agent to call
     ) -> List[Message]:
+        """
+        Call the agent to respond to the group messages.
+
+        Args:
+            next_speaker_select_mode (Literal["order","auto","auto2","random"]): The mode to select the next speaker. Defaults to "auto2".
+            include_current (bool): Whether to include the current agent in the handoff. Defaults to True.
+            model (str): The model to use for the handoff. Defaults to "gpt-4o-mini".
+            message_cut_off (int): The number of previous messages to consider. Defaults to 3.
+            agent (str): Specify the agent to call. Defaults to None meaning the agent will be selected based on the next_speaker_select_mode.
+        """
         if agent:
             self.set_current_agent(agent)
         else:
@@ -165,10 +188,13 @@ class Group:
         response = self.members_map[self.current_agent].do(message_send,model)
         self.update_group_messages(response)
         for r in response:
-            self._logger.log("info",f"Agent {self.current_agent} response:\n {r.result}",color="bold_purple")
+            self._logger.log("info",f"Agent {self.current_agent} response:\n\n{r.result}",color="bold_purple")
         return response
 
     def call_manager(self,model:str="gpt-4o-mini",message_cut_off:int=3) -> List[Message]:
+        """
+        Call the manager to respond to the group messages.
+        """
         if not self.manager:
             self._logger.log("warning","No manager in the group , you can set the manager in Group initialization",color="red")
             return
@@ -189,6 +215,15 @@ class Group:
             message_cut_off:int=3,
             agent:str = None # can mauanlly set the agent to call
         )-> List[Message]:
+        """
+        Talk to the agent.
+
+        Args:
+            message (str): The message to send to the agent.
+            model (str): The model to use for the handoff. Defaults to "gpt-4o-mini".
+            message_cut_off (int): The number of previous messages to consider. Defaults to 3.
+            agent (str): Specify the agent to call. Defaults to None meaning the agent will be selected based on the next_speaker_select_mode.
+        """
         self.user_input(message)
         response = self.call_agent("auto2",include_current=True,model=model,message_cut_off=message_cut_off,agent=agent)
         return response
@@ -206,6 +241,14 @@ class Group:
             task (str): The task to execute.
             strategy (Literal["sequential","hierarchical","auto"], optional): The strategy to use for the task. Defaults to "auto".
             model (str, optional): The model to use for the task. Defaults to "gpt-4o-mini".
+
+        Returns:
+            List[Message]: The response
+
+        More details about the strategy:
+            - sequential: The task will be executed sequentially by each agent in the group.
+            - hierarchical: To be implemented.
+            - auto: The task will be executed automatically by the agents in the group based on the planning.
         """
         self.reset_group_messages()
         if strategy == "sequential":
