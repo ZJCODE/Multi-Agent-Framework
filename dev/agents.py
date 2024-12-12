@@ -33,12 +33,23 @@ class Group:
         self._update_response_format_maps()
         self.group_messages: GroupMessageProtocol = GroupMessageProtocol(group_id=self.group_id,env=self.env_public)
         self._create_manager(manager)
-    
-    def set_current_agent(self, agent_name:str):
+
+    def set_current_agent(self, agent_name: str):
+        """
+        Set the current agent by name if the agent exists in the members map.
+
+        Args:
+            agent_name (str): The name of the agent to set as current.
+
+        Raises:
+            ValueError: If the agent name does not exist in the members map.
+        """
         if agent_name not in self.members_map:
+            self._logger.log("error", f"Attempted to set non-existent member {agent_name} as current agent")
             raise ValueError(f"Member with name {agent_name} does not exist")
+
         self.current_agent = agent_name
-        self._logger.log("info",f"manually set the current agent to {agent_name}")
+        self._logger.log("info", f"Manually set the current agent to {agent_name}")
 
 
     def add_member(self, member: Member,relation:Optional[Tuple[str,str]] = None):
