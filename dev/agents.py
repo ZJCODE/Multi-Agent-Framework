@@ -371,6 +371,13 @@ class Group:
 
     def _task_auto(self,task:str,model:str="gpt-4o-mini"):
         tasks = self._planning(task,model)
+        tasks_str = "\n".join([f"{t.agent_name}: {t.task}" for t in tasks])
+        self._logger.log("info",f"Initial plan is \n\n{tasks_str}",color="bold_blue")
+
+        tasks = self._revise_plan(task,tasks,model=model)
+        tasks_str = "\n".join([f"{t.agent_name}: {t.task}" for t in tasks])
+        self._logger.log("info",f"Revised plan is \n\n{tasks_str}",color="bold_blue")
+
         step = 0
         self._logger.log("info",f"Start task: {task}")
         for t in tasks:
@@ -389,7 +396,7 @@ class Group:
             task (str): The task to plan.
             model (str): The model to use for planning.
         """
-
+        self._logger.log("info","Start planning the task")
         member_list = ",".join([f'"{m.name}"' for m in self.env.members])
 
         class_str = (
@@ -408,17 +415,18 @@ class Group:
         members_description = "\n".join([f"- {m.name} ({m.role})" + (f" [tools available: {', '.join([x.__name__ for x in m.tools])}]" if m.tools else "") for m in self.env.members])
 
         prompt = (
-            f"### Background Information\n"
+            f"### Contextual Information\n"
             f"{self.env.description}\n\n"
-            f"### Members\n"
+            f"### Potential Members\n"
             f"{members_description}\n\n"
-            f"### Task\n"
-            f"{task}\n\n"
-            f"Consider the Background Information and the members" 
-            f"Generate a sequence of sub-tasks based on the task and assign them to the members in best order."
+            f"### Task for Planning\n"
+            f"```\n{task}\n```\n\n"
+            f"### Strategy\n"
+            f"Step One: Choose a group of members to delegate the task.\n"
+            f"Step Two: Create a list of sub-tasks derived from the main task and allocate them to the chosen members in best order.\n"
         )
 
-        messages = [{"role": "system", "content": "You are a experienced planner.Plan the task and assign sub-tasks to the members."}]
+        messages = [{"role": "system", "content": "You are a experienced planner."}]
         messages.extend([{"role": "user", "content": prompt}])
         
         completion = self.model_client.beta.chat.completions.parse(
@@ -427,6 +435,74 @@ class Group:
             temperature=0.0,
             response_format=response_format,
         )
+        self._logger.log("info","Planning finished")
+        return completion.choices[0].message.parsed.tasks
+
+    def _revise_plan(self,task:str,init_paln:list,model:str="gpt-4o-mini"):
+        
+        self._logger.log("info","Start revising the plan")
+
+        member_list = ",".join([f'"{m.name}"' for m in self.env.members])
+
+        members_description = "\n".join([f"- {m.name} ({m.role})" + (f" [tools available: {', '.join([x.__name__ for x in m.tools])}]" if m.tools else "") for m in self.env.members])
+
+        self._logger.log("info","Get feedback from the members")
+
+        prompt = (
+            f"### Contextual Information\n"
+            f"{self.env.description}\n\n"
+            f"### Potential Members\n"
+            f"{members_description}\n\n"
+            f"### Task for Planning\n"
+            f"```\n{task}\n```\n\n"
+            f"### Initial Plan\n"
+            f"```\n{init_paln}\n```\n\n"
+            f"Do you have any feedback on the initial plan? Please provide your feedback in simple and clear language."
+        )
+
+        self.handoff(next_speaker_select_mode="auto2",model=model,include_current=True)
+        response1 = self.members_map[self.current_agent].do(prompt,model)
+        self.handoff(next_speaker_select_mode="auto2",model=model,include_current=False)
+        response2 = self.members_map[self.current_agent].do(prompt,model)
+
+        class_str = (
+            f"class Task(BaseModel):\n"
+            f"    agent_name:Literal[{member_list}]\n"
+            f"    task:str\n"
+            f""
+            f"class Tasks(BaseModel):\n"
+            f"    tasks:List[Task]\n"
+        )
+        
+        exec(class_str, globals())
+
+        response_format = eval("Tasks")
+
+        prompt = (
+            f"### Contextual Information\n"
+            f"{self.env.description}\n\n"
+            f"### Potential Members\n"
+            f"{members_description}\n\n"
+            f"### Task for Planning\n"
+            f"```\n{task}\n```\n\n"
+            f"### Initial Plan\n"
+            f"```\n{init_paln}\n```\n\n"
+            f"### Feedbacks\n"
+            f"```\n{response1}\n```\n"
+            f"```\n{response2}\n```\n\n"
+            f"Please revise the plan based on the feedbacks."
+        )
+
+        messages = [{"role": "system", "content": "You are a experienced planner."}]
+        messages.extend([{"role": "user", "content": prompt}])
+        
+        completion = self.model_client.beta.chat.completions.parse(
+            model=model,
+            messages=messages,
+            temperature=0.0,
+            response_format=response_format,
+        )
+        self._logger.log("info","Revising the plan finished")
         return completion.choices[0].message.parsed.tasks
 
     def _create_manager(self,manager:Union[Agent,bool]):
