@@ -529,7 +529,18 @@ class Group:
             f"Step Two: Create a list of sub-tasks derived from the main task and allocate them to the chosen members in best order.\n"
         )
 
-        messages = [{"role": "system", "content": "You are a experienced planner."}]
+
+        planner_prompt = (
+            "You are a experienced planner."
+            "Analyse the task and delegate the sub-tasks to the group members."
+            "Ensure that the sub-tasks are distributed in a way that the group can complete the task efficiently."
+            "Consider the order of the sub-tasks and the capabilities of the group members."
+            "Each Task should include the agent name, the task, and the list of agents to receive information from."
+        )
+
+        messages = [{"role": "system", "content": planner_prompt}]
+
+
         messages.extend([{"role": "user", "content": prompt}])
         
         completion = self.model_client.beta.chat.completions.parse(
@@ -601,7 +612,16 @@ class Group:
             f"Please revise the plan based on the feedbacks."
         )
 
-        messages = [{"role": "system", "content": "You are a experienced planner."}]
+
+        planner_prompt = (
+            "You are a experienced planner."
+            "Analyse the task and delegate the sub-tasks to the group members."
+            "Ensure that the sub-tasks are distributed in a way that the group can complete the task efficiently."
+            "Consider the order of the sub-tasks and the capabilities of the group members."
+            "Each Task should include the agent name, the task, and the list of agents to receive information from."
+        )
+
+        messages = [{"role": "system", "content": planner_prompt}]
         messages.extend([{"role": "user", "content": prompt}])
         
         completion = self.model_client.beta.chat.completions.parse(
