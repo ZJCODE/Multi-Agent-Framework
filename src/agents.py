@@ -686,7 +686,7 @@ class Group:
                 f"{messages}\n\n"
             )
         else:
-            members_description = "\n".join([f"- {m.name} ({m.role})" + (f" [tools available: {', '.join([x.__name__ for x in m.tools])}]" if m.tools else "") for m in self.env.members])
+            members_description = "\n".join([f"- {m.name} ({m.role})" + (f" [tools available: {', '.join([x.__name__ for x in m.tools])}]" if m.tools else "") for m in [self.members_map[agent] for agent in self.env.relationships[self.current_agent]]])
             prompt = (
                     f"### Background Information\n"
                     f"{self.env.description}\n\n"

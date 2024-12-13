@@ -1,7 +1,5 @@
 from datetime import datetime
-
 from pydantic import BaseModel, Field, PrivateAttr
-
 from utilities.printer import Printer
 
 

@@ -1,7 +1,6 @@
 from dataclasses import dataclass, field
 from typing import List, Tuple, Dict, Optional, Union
 
-
 @dataclass
 class Member:
     """Defines a member in the environment.

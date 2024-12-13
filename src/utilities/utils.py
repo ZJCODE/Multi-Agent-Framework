@@ -14,9 +14,7 @@ def function_to_schema(func) -> dict:
     try:
         signature = inspect.signature(func)
     except ValueError as e:
-        raise ValueError(
-            f"Failed to get signature for function {func.__name__}: {str(e)}"
-        )
+        raise ValueError(f"Failed to get signature for function {func.__name__}: {str(e)}")
 
     parameters = {}
     for param in signature.parameters.values():

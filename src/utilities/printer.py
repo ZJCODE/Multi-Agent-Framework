@@ -1,6 +1,5 @@
 from typing import Optional
 
-
 class Printer:
     def print(self, content: str, color: Optional[str] = None):
         if color == "purple":

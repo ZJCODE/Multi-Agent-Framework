@@ -1,9 +1,6 @@
 from duckduckgo_search import DDGS
 import requests
 from bs4 import BeautifulSoup
-# pip install duckduckgo_search
-# pip install requests
-# pip install beautifulsoup4
 
 def web_search(query:str,timelimit:str,max_results:int):
     """

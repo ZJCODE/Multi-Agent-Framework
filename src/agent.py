@@ -1,5 +1,5 @@
 from protocol import Member,Message
-from typing import List, Any, Union,Dict
+from typing import List,Union,Dict
 from openai import OpenAI,AsyncOpenAI
 import requests
 import json
