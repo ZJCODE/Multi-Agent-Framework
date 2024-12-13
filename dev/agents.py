@@ -674,7 +674,7 @@ class Group:
             str: The prompt for the agent to decide who should be the next person been handoff to.
         """
 
-        messages = "\n\n".join([f"```{m.sender}\n {m.result}\n```" for m in self.context[-cut_off:]])
+        messages = "\n\n".join([f"```{m.sender}\n {m.result}\n```" for m in self.group_messages.context[-cut_off:]])
 
         if use_tool:
             prompt = (
@@ -715,11 +715,11 @@ class Group:
 
 
         if cut_off is None:
-            previous_messages = "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in self.context if m.sender == send_to])
-            others_messages = "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in self.context if m.sender != send_to])
+            previous_messages = "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in self.group_messages.context if m.sender == send_to])
+            others_messages = "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in self.group_messages.context if m.sender != send_to])
         else:
-            previous_messages = "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in self.context[-cut_off:] if m.sender == send_to])
-            others_messages = "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in self.context[-cut_off:] if m.sender != send_to])
+            previous_messages = "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in self.group_messages.context[-cut_off:] if m.sender == send_to])
+            others_messages = "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in self.group_messages.context[-cut_off:] if m.sender != send_to])
 
         prompt = (
             f"### Background Information\n"
@@ -734,12 +734,12 @@ class Group:
             f"Consider the Background Information and the previous messages. Now, it's your turn."
         )
 
-        if self.context[-1].sender == "user":
-            if self.context[-1].action == "task":
-                current_user_task = self.context[-1].result
+        if self.group_messages.context[-1].sender == "user":
+            if self.group_messages.context[-1].action == "task":
+                current_user_task = self.group_messages.context[-1].result
                 prompt += f"\n\n### Current Task\n{current_user_task}\n\n"
-            elif self.context[-1].action == "talk":
-                current_user_message = self.context[-1].result
+            elif self.group_messages.context[-1].action == "talk":
+                current_user_message = self.group_messages.context[-1].result
                 prompt += f"\n\n### Current User's Input\n{current_user_message}\n\n"
 
         return prompt
