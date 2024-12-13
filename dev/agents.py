@@ -486,7 +486,7 @@ class Group:
             f"Please respond to the task."
         )
 
-        self._logger.log("info",f"Auto task message for {agent_name}:\n\n{promote}",color="bold_blue")
+        # self._logger.log("info",f"Auto task message for {agent_name}:\n\n{promote}",color="bold_blue")
 
         return promote
 
