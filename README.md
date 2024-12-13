@@ -2,8 +2,7 @@
 
 ## Introduction
 
-Multi Agent Framework can do talk and task and self-play with multiple agents.
-
+The Multi-Agent Framework can communicate, execute tasks, and manage low-level control.
 
 ## Pre-requirements
 
