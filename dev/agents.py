@@ -525,17 +525,16 @@ class Group:
             f"### Task for Planning\n"
             f"```\n{task}\n```\n\n"
             f"### Strategy\n"
-            f"Step One: Choose a group of members to delegate the task.\n"
-            f"Step Two: Create a list of sub-tasks derived from the main task and allocate them to the chosen members in best order.\n"
+            f"First, evaluate team members' skills and availability to form a balanced group, ensuring a mix of competencies and manageable workloads. "
+            f"Then, break the main task into prioritized sub-tasks and assign them based on expertise"
         )
 
 
         planner_prompt = (
-            "You are a experienced planner."
-            "Analyse the task and delegate the sub-tasks to the group members."
-            "Ensure that the sub-tasks are distributed in a way that the group can complete the task efficiently."
-            "Consider the order of the sub-tasks and the capabilities of the group members."
-            "Each Task should include the agent name, the task, and the list of agents to receive information from."
+        "As an experienced planner with strong analytical and organizational skills, your role is to analyze tasks and delegate sub-tasks to group members." 
+        "Ensure efficient completion by considering task order, member capabilities, and resource allocation." 
+        "Communicate clearly and adapt to changing circumstances." 
+        "Each task should include the agent's name, the task description, and a list of agents from whom they need to receive information (this list can be empty)."
         )
 
         messages = [{"role": "system", "content": planner_prompt}]
@@ -609,16 +608,15 @@ class Group:
             f"```\n{init_paln}\n```\n\n"
             f"### Feedbacks\n"
             f"{feedbacks_str}\n\n"
-            f"Please revise the plan based on the feedbacks."
+            f"Please revise the plan by addressing the feedback provided. Ensure that all concerns are considered,"
+            f"and make necessary adjustments to improve the plan's effectiveness and feasibility. "
         )
 
-
         planner_prompt = (
-            "You are a experienced planner."
-            "Analyse the task and delegate the sub-tasks to the group members."
-            "Ensure that the sub-tasks are distributed in a way that the group can complete the task efficiently."
-            "Consider the order of the sub-tasks and the capabilities of the group members."
-            "Each Task should include the agent name, the task, and the list of agents to receive information from."
+        "As an experienced planner with strong analytical and organizational skills, your role is to analyze tasks and delegate sub-tasks to group members." 
+        "Ensure efficient completion by considering task order, member capabilities, and resource allocation." 
+        "Communicate clearly and adapt to changing circumstances." 
+        "Each task should include the agent's name, the task description, and a list of agents from whom they need to receive information (this list can be empty)."
         )
 
         messages = [{"role": "system", "content": planner_prompt}]
@@ -684,7 +682,7 @@ class Group:
                 f"{messages}\n\n"
             )
         else:
-            members_description = "\n\n".join([f"```{m.name}\n({m.role}):{m.description}\n```" for m in self.env.members])
+            members_description = "\n".join([f"- {m.name} ({m.role})" + (f" [tools available: {', '.join([x.__name__ for x in m.tools])}]" if m.tools else "") for m in self.env.members])
             prompt = (
                     f"### Background Information\n"
                     f"{self.env.description}\n\n"
@@ -711,7 +709,7 @@ class Group:
             str: The prompt for the agent to send a message.
         """
         
-        members_description = "\n".join([f"- {m.name} ({m.role})" for m in self.env.members])
+        members_description = "\n".join([f"- {m.name} ({m.role})" + (f" [tools available: {', '.join([x.__name__ for x in m.tools])}]" if m.tools else "") for m in self.env.members])
 
 
         if cut_off is None:

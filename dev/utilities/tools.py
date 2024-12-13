@@ -16,19 +16,29 @@ def web_search(query:str,timelimit:str,max_results:int):
 
     """
     results = DDGS().text(keywords=query, safesearch='off', timelimit=timelimit, max_results=max_results)
+
+    DETAIL_N = 1
+
+    for result in results[:DETAIL_N]:
+        try:
+            result['content'] = web_content_process(result['href'], timeout=10)
+        except Exception as e:
+            pass
+
     return results
 
-def web_content_process(link: str) -> str:
+def web_content_process(link: str, timeout: int = 10) -> str:
     """
     Process the content of the given link by using beautifulsoup.
 
     Args:
         link (str): The link to process.
+        timeout (int): The timeout for the request in seconds.
 
     Returns:
         str: The main content of the link.
     """
-    response = requests.get(link)
+    response = requests.get(link, timeout=timeout)
     soup = BeautifulSoup(response.text, 'html.parser')
 
     # Attempt to find the main content using common tags
