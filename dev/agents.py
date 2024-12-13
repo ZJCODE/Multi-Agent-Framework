@@ -195,7 +195,7 @@ class Group:
             self.set_current_agent(agent)
         else:
             self.handoff(next_speaker_select_mode=next_speaker_select_mode,model=model,include_current=include_current)
-        message_send = self._build_send_message(self.group_messages,cut_off=message_cut_off,send_to=self.current_agent)
+        message_send = self._build_send_message(cut_off=message_cut_off,send_to=self.current_agent)
         response = self.members_map[self.current_agent].do(message_send,model)
         self.update_group_messages(response)
         for r in response:
@@ -209,7 +209,7 @@ class Group:
         if not self.manager:
             self._logger.log("warning","No manager in the group , you can set the manager in Group initialization",color="red")
             return
-        message_send = self._build_send_message(self.group_messages,cut_off=message_cut_off,send_to=self.manager.name)
+        message_send = self._build_send_message(cut_off=message_cut_off,send_to=self.manager.name)
         response = self.manager.do(message_send,model)
         self.update_group_messages(response)
         self._logger.log("info",f"Call manager {self.manager.name}",color="bold_green")
@@ -386,7 +386,7 @@ class Group:
     def _select_next_agent_auto(self, model: str, include_current: bool, use_tool: bool) -> str:
 
         messages = [{"role": "system", "content": "Decide who should be the next person to talk. Transfer the conversation to the next person."}]
-        handoff_message = self._build_handoff_message(self.group_messages, cut_off=1, use_tool=use_tool) # notice the cut_off setting
+        handoff_message = self._build_handoff_message(cut_off=1, use_tool=use_tool) # notice the cut_off setting
         messages.extend([{"role": "user", "content": handoff_message}])
 
         # if use_tool is True, the agent will be selected based on the tool call [auto]
@@ -425,22 +425,70 @@ class Group:
 
     def _task_auto(self,task:str,model:str="gpt-4o-mini"):
         tasks = self._planning(task,model)
-        tasks_str = "\n".join([f"{t.agent_name}: {t.task}" for t in tasks])
+
+        tasks_str = "\n".join([f"{t.json()}" for t in tasks])
         self._logger.log("info",f"Initial plan is \n\n{tasks_str}",color="bold_blue")
 
         tasks = self._revise_plan(task,tasks,model=model)
-        tasks_str = "\n".join([f"{t.agent_name}: {t.task}" for t in tasks])
+        tasks_str = "\n".join([f"{t.json()}" for t in tasks])
         self._logger.log("info",f"Revised plan is \n\n{tasks_str}",color="bold_blue")
 
         step = 0
         self._logger.log("info",f"Start task: {task}")
         for t in tasks:
             step += 1
-            self.user_input(t.task,action="task",alias="Sub-Task")
-            self._logger.log("info",f"===> Step {step} for {t.agent_name}")
-            response = self.call_agent(agent=t.agent_name,model=model,include_current=False,message_cut_off=None)
+            self._logger.log("info",f"===> Step {step} for {t.agent_name} \n\ndo task: {t.task} \n\nreceive information from: {t.receive_information_from}")
+            self.set_current_agent(t.agent_name)
+            message_send = self._build_auto_task_message(t,cut_off=2,model=model)
+            response = self.members_map[t.agent_name].do(message_send,model)
+            self.update_group_messages(response)
+            for r in response:
+                self._logger.log("info",f"Agent {self.current_agent} response:\n\n{r.result}",color="bold_purple")
         self._logger.log("info","Task finished")
         return response
+    
+    def _build_auto_task_message(self,task,cut_off:int=None,model:str="gpt-4o-mini"):
+        if cut_off < 1:
+            cut_off = None
+        agent_name = task.agent_name
+        task_deatil = task.task
+        receive_information_from = task.receive_information_from
+
+        members_description = "\n".join([f"- {m.name} ({m.role})" for m in self.env.members])
+
+        previous_messages = [message for message in self.group_messages.context if message.sender == agent_name]
+        if cut_off is not None:
+            previous_messages = previous_messages[-cut_off:]
+
+        receive_informations = []
+        receive_sender_couter = {}
+        for message in self.group_messages.context:
+            if message.sender in receive_information_from and (receive_sender_couter.get(message.sender,0) < cut_off or cut_off is None):
+                if message.sender not in receive_sender_couter:
+                    receive_sender_couter[message.sender] = 0
+                receive_sender_couter[message.sender] += 1
+                receive_informations.append(message)
+
+        previous_messages_str = "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in previous_messages])
+        receive_informations_str = "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in receive_informations])
+
+        promote = (
+            f"### Background Information\n"
+            f"{self.env.description}\n\n"
+            f"### Members\n"
+            f"{members_description}\n\n"
+            f"### Your Previous Message\n"
+            f"{previous_messages_str}\n\n"
+            f"### Received Information\n"
+            f"{receive_informations_str}\n\n"
+            f"### Task\n"
+            f"```\n{task_deatil}\n```\n\n"
+            f"Please respond to the task."
+        )
+
+        self._logger.log("info",f"Auto task message for {agent_name}:\n\n{promote}",color="bold_blue")
+
+        return promote
 
     def _planning(self,task:str,model:str="gpt-4o-mini"):
         """
@@ -457,6 +505,7 @@ class Group:
             f"class Task(BaseModel):\n"
             f"    agent_name:Literal[{member_list}]\n"
             f"    task:str\n"
+            f"    receive_information_from:List[Literal[{member_list}]]\n"
             f""
             f"class Tasks(BaseModel):\n"
             f"    tasks:List[Task]\n"
@@ -511,18 +560,24 @@ class Group:
             f"```\n{task}\n```\n\n"
             f"### Initial Plan\n"
             f"```\n{init_paln}\n```\n\n"
-            f"Do you have any feedback on the initial plan? Please provide your feedback in simple and clear language."
+            f"Please provide your feedback on the initial plan in a concise and clear sentence."
         )
 
-        self.handoff(next_speaker_select_mode="auto2",model=model,include_current=True)
-        response1 = self.members_map[self.current_agent].do(prompt,model)
-        self.handoff(next_speaker_select_mode="auto2",model=model,include_current=False)
-        response2 = self.members_map[self.current_agent].do(prompt,model)
+        feedbacks = []
+        for member in self.env.members:
+            response = self.members_map[member.name].do(prompt,model)
+            for r in response:
+                feedbacks.append(r)
+        
+        feedbacks_str = "\n".join([f"{f.sender}: {f.result}" for f in feedbacks])
+
+        self._logger.log("info",f"Feedbacks from the members:\n\n{feedbacks_str}",color="bold_blue")
 
         class_str = (
             f"class Task(BaseModel):\n"
             f"    agent_name:Literal[{member_list}]\n"
             f"    task:str\n"
+            f"    receive_information_from:List[Literal[{member_list}]]\n"
             f""
             f"class Tasks(BaseModel):\n"
             f"    tasks:List[Task]\n"
@@ -542,8 +597,7 @@ class Group:
             f"### Initial Plan\n"
             f"```\n{init_paln}\n```\n\n"
             f"### Feedbacks\n"
-            f"```\n{response1}\n```\n"
-            f"```\n{response2}\n```\n\n"
+            f"{feedbacks_str}\n\n"
             f"Please revise the plan based on the feedbacks."
         )
 
@@ -588,33 +642,32 @@ class Group:
             }
         }
 
-    @staticmethod
-    def _build_handoff_message(gmp:GroupMessageProtocol,cut_off:int=1,use_tool:bool=False):
+    
+    def _build_handoff_message(self,cut_off:int=1,use_tool:bool=False):
         """
         This function builds a prompt for llm to decide who should be the next person been handoff to.
 
         Args:
-            gmp (GroupMessageProtocol): The group message protocol Instance.
             cut_off (int): The number of previous messages to consider.
 
         Returns:
             str: The prompt for the agent to decide who should be the next person been handoff to.
         """
 
-        messages = "\n\n".join([f"```{m.sender}\n {m.result}\n```" for m in gmp.context[-cut_off:]])
+        messages = "\n\n".join([f"```{m.sender}\n {m.result}\n```" for m in self.context[-cut_off:]])
 
         if use_tool:
             prompt = (
                 f"### Background Information\n"
-                f"{gmp.env.description}\n\n"
+                f"{self.env.description}\n\n"
                 f"### Messages\n"
                 f"{messages}\n\n"
             )
         else:
-            members_description = "\n\n".join([f"```{m.name}\n({m.role}):{m.description}\n```" for m in gmp.env.members])
+            members_description = "\n\n".join([f"```{m.name}\n({m.role}):{m.description}\n```" for m in self.env.members])
             prompt = (
                     f"### Background Information\n"
-                    f"{gmp.env.description}\n\n"
+                    f"{self.env.description}\n\n"
                     f"### Members\n"
                     f"{members_description}\n\n"
                     f"### Messages\n"
@@ -626,13 +679,11 @@ class Group:
             
         return prompt     
 
-    @staticmethod
-    def _build_send_message(gmp:GroupMessageProtocol,cut_off:int=None,send_to:str=None) -> str:
+    def _build_send_message(self,cut_off:int=None,send_to:str=None) -> str:
         """ 
         This function builds a prompt for the agent to send a message in the group message protocol.
 
         Args:
-            gmp (GroupMessageProtocol): The group message protocol Instance.
             cut_off (int): The number of previous messages to consider.
             send_to (str): The agent to send the message
 
@@ -640,19 +691,19 @@ class Group:
             str: The prompt for the agent to send a message.
         """
         
-        members_description = "\n".join([f"- {m.name} ({m.role})" for m in gmp.env.members])
+        members_description = "\n".join([f"- {m.name} ({m.role})" for m in self.env.members])
 
 
         if cut_off is None:
-            previous_messages = "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in gmp.context if m.sender == send_to])
-            others_messages = "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in gmp.context if m.sender != send_to])
+            previous_messages = "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in self.context if m.sender == send_to])
+            others_messages = "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in self.context if m.sender != send_to])
         else:
-            previous_messages = "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in gmp.context[-cut_off:] if m.sender == send_to])
-            others_messages = "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in gmp.context[-cut_off:] if m.sender != send_to])
+            previous_messages = "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in self.context[-cut_off:] if m.sender == send_to])
+            others_messages = "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in self.context[-cut_off:] if m.sender != send_to])
 
         prompt = (
             f"### Background Information\n"
-            f"{gmp.env.description}\n\n"
+            f"{self.env.description}\n\n"
             f"### Members\n"
             f"{members_description}\n\n"
             f"### Your Previous Message\n"
@@ -663,12 +714,12 @@ class Group:
             f"Consider the Background Information and the previous messages. Now, it's your turn."
         )
 
-        if gmp.context[-1].sender == "user":
-            if gmp.context[-1].action == "task":
-                current_user_task = gmp.context[-1].result
+        if self.context[-1].sender == "user":
+            if self.context[-1].action == "task":
+                current_user_task = self.context[-1].result
                 prompt += f"\n\n### Current Task\n{current_user_task}\n\n"
-            elif gmp.context[-1].action == "talk":
-                current_user_message = gmp.context[-1].result
+            elif self.context[-1].action == "talk":
+                current_user_message = self.context[-1].result
                 prompt += f"\n\n### Current User's Input\n{current_user_message}\n\n"
 
         return prompt

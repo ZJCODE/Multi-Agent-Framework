@@ -86,13 +86,14 @@ class Agent(Member):
             tool = self.tools_map[tool_call.function.name]
             tool_args = json.loads(tool_call.function.arguments)
             tool_result = tool(**tool_args)
+            self._logger.log(level="info", message=f"Tool Call: {tool_call.function.name} with arguments: {tool_args} by {self.name}",color="bold_green")
             tool_call_result = (
                 f"By using the tool '{tool_call.function.name}' with the arguments {tool_args}, "
                 f"the result is '{tool_result}'."
             )
-            res.append(Message(sender=self.name, action="tool", result=tool_call_result))
-            messages.append({"role": "system", "content": tool_call_result})
+            messages.append({"role": "assistant", "content": tool_call_result})
 
+        messages.append({"role": "user", "content": "Based on the results from the tools, respond to my previous question."})
         response = self.model_client.chat.completions.create(
                 model=model,
                 messages=messages,
