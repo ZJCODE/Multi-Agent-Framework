@@ -2,7 +2,8 @@
 
 ## Introduction
 
-Multi Agent Framework can do talk and task
+Multi Agent Framework can do talk and task and self-play with multiple agents.
+
 
 ## Pre-requirements
 
