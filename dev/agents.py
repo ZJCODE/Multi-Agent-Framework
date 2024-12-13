@@ -243,7 +243,8 @@ class Group:
             self,
             task:str,
             strategy:Literal["sequential","hierarchical","auto"] = "auto",
-            model:str="gpt-4o-mini"
+            model:str="gpt-4o-mini",
+            model_for_planning:str=None, # can manually set the model for planning for example gpt-4o
         ) -> List[Message]:
         """
         Execute a task with the given strategy.
@@ -267,7 +268,7 @@ class Group:
         elif strategy == "hierarchical":
             return self._task_hierarchical(task,model)
         elif strategy == "auto":
-            return self._task_auto(task,model)
+            return self._task_auto(task,model,model_for_planning)
         else:
             raise ValueError("strategy should be one of 'sequential' or 'hierarchical' or 'auto'")
         
@@ -423,13 +424,14 @@ class Group:
         self._logger.log("info","Task finished")
         return response
 
-    def _task_auto(self,task:str,model:str="gpt-4o-mini"):
-        tasks = self._planning(task,model)
+    def _task_auto(self,task:str,model:str="gpt-4o-mini",model_for_planning:str=None):
+
+        tasks = self._planning(task, model_for_planning if model_for_planning else model)
 
         tasks_str = "\n".join([f"{t.json()}" for t in tasks])
         self._logger.log("info",f"Initial plan is \n\n{tasks_str}",color="bold_blue")
 
-        tasks = self._revise_plan(task,tasks,model=model)
+        tasks = self._revise_plan(task,tasks,model_for_planning if model_for_planning else model)
         tasks_str = "\n".join([f"{t.json()}" for t in tasks])
         self._logger.log("info",f"Revised plan is \n\n{tasks_str}",color="bold_blue")
 
@@ -570,7 +572,9 @@ class Group:
             f"```\n{task}\n```\n\n"
             f"### Initial Plan\n"
             f"```\n{init_paln}\n```\n\n"
-            f"Please provide your feedback on the initial plan in a concise and clear sentence."
+            f"Please review the initial plan and offer constructive feedback, "
+            f"highlighting any improvements or adjustments that could enhance the project's success, "
+            f"response in a concise and clear sentence."
         )
 
         feedbacks = []
