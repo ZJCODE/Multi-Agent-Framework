@@ -10,6 +10,8 @@ from utilities.logger import Logger
 
 from protocol import Member, Env, Message, GroupMessageProtocol
 from agent import Agent
+import os
+import datetime
 
 class Group:
     def __init__(
@@ -18,11 +20,14 @@ class Group:
         model_client: OpenAI,
         group_id: Optional[str] = None,
         verbose: bool = False,
+        workspace: Optional[str] = None,
         manager:Union[Agent,bool] = None # if manager is True, the group will have a default manager or you can pass a Agent instance
     ):
         self._logger = Logger(verbose=verbose)
         self.fully_connected = False # will be updated in _rectify_relationships
         self.group_id:str = group_id if group_id else str(uuid.uuid4()) # unique group
+        self.workspace = workspace
+        self._create_group_workspace()
         self.env: Env = env
         self.model_client: OpenAI = model_client # currently only supports OpenAI synthetic API
         self.current_agent: Optional[str] = self.env.members[0].name # default current agent is the first agent in the members list
@@ -745,3 +750,29 @@ class Group:
                 prompt += f"\n\n### Current User's Input\n{current_user_message}\n\n"
 
         return prompt
+
+
+    def _create_group_workspace(self):
+
+        if self.workspace is None:
+            # when workspace is None, some functions based on workspace will not work
+            return
+
+        if not os.path.exists(self.workspace):
+            os.makedirs(self.workspace)
+            self._logger.log("info", f"Workspace directory {self.workspace} created.")
+        else:
+            self._logger.log("info", f"Workspace directory {self.workspace} exists.")
+        
+        group_workspace = os.path.join(self.workspace, self.group_id)
+        if not os.path.exists(group_workspace):
+            os.makedirs(group_workspace)
+            self._logger.log("info", f"Group workspace directory {group_workspace} created.")
+            info_file_path = os.path.join(group_workspace, "record.txt")
+            with open(info_file_path, "w") as info_file:
+                info_file.write(f"Workspace for group [{self.group_id}] has been created at {datetime.datetime.now()}\n")
+            self._logger.log("info", f"Group workspace record file created.")
+        else:
+            self._logger.log("info", f"Group workspace directory {group_workspace} exists.")
+        
+        self.group_workspace = group_workspace
