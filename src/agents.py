@@ -183,7 +183,7 @@ class Group:
             next_speaker_select_mode:Literal["order","auto","auto2","random"]="auto2",
             include_current:bool = True,
             model:str="gpt-4o-mini",
-            message_cut_off:int=3,
+            message_cut_off:int=5,
             agent:str = None # can mauanlly set the agent to call
     ) -> List[Message]:
         """
@@ -207,7 +207,7 @@ class Group:
             self._logger.log("info",f"Agent {self.current_agent} response:\n\n{r.result}",color="bold_purple")
         return response
 
-    def call_manager(self,model:str="gpt-4o-mini",message_cut_off:int=3) -> List[Message]:
+    def call_manager(self,model:str="gpt-4o-mini",message_cut_off:int=5) -> List[Message]:
         """
         Call the manager to respond to the group messages.
         """
@@ -354,7 +354,8 @@ class Group:
         self.env_public = Env(
             description=self.env.description,
             members=[Member(name=m.name, role=m.role, description=m.description) for m in self.env.members],
-            relationships=self.env.relationships
+            relationships=self.env.relationships,
+            language=self.env.language
         )
 
     def _build_current_agent_handoff_tools(self, include_current_agent:bool = False):
@@ -446,7 +447,7 @@ class Group:
             step += 1
             self._logger.log("info",f"===> Step {step} for {t.agent_name} \n\ndo task: {t.task} \n\nreceive information from: {t.receive_information_from}")
             self.set_current_agent(t.agent_name)
-            message_send = self._build_auto_task_message(t,cut_off=2,model=model)
+            message_send = self._build_auto_task_message(t,cut_off=2,model=model) 
             response = self.members_map[t.agent_name].do(message_send,model)
             self.update_group_messages(response)
             for r in response:
@@ -479,7 +480,7 @@ class Group:
         previous_messages_str = "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in previous_messages])
         receive_informations_str = "\n\n".join([f"```{m.sender}:{m.action}\n{m.result}\n```" for m in receive_informations])
 
-        promote = (
+        prompt = (
             f"### Background Information\n"
             f"{self.env.description}\n\n"
             f"### Members\n"
@@ -493,9 +494,10 @@ class Group:
             f"Please respond to the task."
         )
 
-        # self._logger.log("info",f"Auto task message for {agent_name}:\n\n{promote}",color="bold_blue")
+        if self.env.language is not None:
+            prompt += f"\n\n### Response in Language: {self.env.language}\n"
 
-        return promote
+        return prompt
 
     def _planning(self,task:str,model:str="gpt-4o-mini"):
         """
@@ -524,6 +526,13 @@ class Group:
 
         members_description = "\n".join([f"- {m.name} ({m.role})" + (f" [tools available: {', '.join([x.__name__ for x in m.tools])}]" if m.tools else "") for m in self.env.members])
 
+        planner_prompt = (
+        "As an experienced planner with strong analytical and organizational skills, your role is to analyze tasks and delegate sub-tasks to group members." 
+        "Ensure efficient completion by considering task order, member capabilities, and resource allocation." 
+        "Communicate clearly and adapt to changing circumstances." 
+        "Each task should include the agent's name, the task description, and a list of agents from whom they need to receive information (this list can be empty)."
+        )
+
         prompt = (
             f"### Contextual Information\n"
             f"{self.env.description}\n\n"
@@ -536,13 +545,8 @@ class Group:
             f"Then, break the main task into prioritized sub-tasks and assign them based on expertise"
         )
 
-
-        planner_prompt = (
-        "As an experienced planner with strong analytical and organizational skills, your role is to analyze tasks and delegate sub-tasks to group members." 
-        "Ensure efficient completion by considering task order, member capabilities, and resource allocation." 
-        "Communicate clearly and adapt to changing circumstances." 
-        "Each task should include the agent's name, the task description, and a list of agents from whom they need to receive information (this list can be empty)."
-        )
+        if self.env.language is not None:
+            prompt += f"\n\n### Response in Language: {self.env.language}\n"
 
         messages = [{"role": "system", "content": planner_prompt}]
 
@@ -568,7 +572,7 @@ class Group:
 
         self._logger.log("info","Get feedback from the members")
 
-        prompt = (
+        feedback_prompt = (
             f"### Contextual Information\n"
             f"{self.env.description}\n\n"
             f"### Potential Members\n"
@@ -582,9 +586,12 @@ class Group:
             f"response in a concise and clear sentence."
         )
 
+        if self.env.language is not None:
+            feedback_prompt += f"\n\n### Response in Language: {self.env.language}\n"
+
         feedbacks = []
         for member in self.env.members:
-            response = self.members_map[member.name].do(prompt,model)
+            response = self.members_map[member.name].do(feedback_prompt,model)
             for r in response:
                 feedbacks.append(r)
         
@@ -604,7 +611,14 @@ class Group:
         
         exec(class_str, globals())
 
-        response_format = eval("Tasks")
+        response_format = eval("Tasks")        
+
+        planner_prompt = (
+        "As an experienced planner with strong analytical and organizational skills, your role is to analyze tasks and delegate sub-tasks to group members." 
+        "Ensure efficient completion by considering task order, member capabilities, and resource allocation." 
+        "Communicate clearly and adapt to changing circumstances." 
+        "Each task should include the agent's name, the task description, and a list of agents from whom they need to receive information (this list can be empty)."
+        )
 
         prompt = (
             f"### Contextual Information\n"
@@ -621,12 +635,8 @@ class Group:
             f"and make necessary adjustments to improve the plan's effectiveness and feasibility. "
         )
 
-        planner_prompt = (
-        "As an experienced planner with strong analytical and organizational skills, your role is to analyze tasks and delegate sub-tasks to group members." 
-        "Ensure efficient completion by considering task order, member capabilities, and resource allocation." 
-        "Communicate clearly and adapt to changing circumstances." 
-        "Each task should include the agent's name, the task description, and a list of agents from whom they need to receive information (this list can be empty)."
-        )
+        if self.env.language is not None:
+            prompt += f"\n\n### Response in Language: {self.env.language}\n"
 
         messages = [{"role": "system", "content": planner_prompt}]
         messages.extend([{"role": "user", "content": prompt}])
@@ -748,6 +758,9 @@ class Group:
             elif self.group_messages.context[-1].action == "talk":
                 current_user_message = self.group_messages.context[-1].result
                 prompt += f"\n\n### Current User's Input\n{current_user_message}\n\n"
+
+        if self.env.language is not None:
+            prompt += f"\n\n### Response in Language: {self.env.language}\n"
 
         return prompt
 

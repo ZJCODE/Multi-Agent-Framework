@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
 from typing import List, Tuple, Dict, Optional, Union
+import re
 
 @dataclass
 class Member:
@@ -20,6 +21,10 @@ class Member:
     name: str
     role: str
     description: Optional[str] = None
+
+    def __post_init__(self):
+        if not (len(self.name) <= 64 and re.match(r'^[0-9a-zA-Z_]+$', self.name)):
+            raise ValueError("Name must consist of letters (a-z, A-Z), digits (0-9), and underscores, and has a maximum length of 64.")
 
 @dataclass
 class Env:
@@ -47,6 +52,7 @@ class Env:
     description: str
     members: List[Member] = field(default_factory=list)
     relationships: Optional[Union[List[Tuple[str, str]], Dict[str, List[str]]]] = None
+    language: Optional[str] = None
 
 @dataclass
 class Message:
