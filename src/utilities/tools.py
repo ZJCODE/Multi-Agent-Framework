@@ -1,7 +1,9 @@
 from duckduckgo_search import DDGS
 import requests
 from bs4 import BeautifulSoup
+from tenacity import retry, wait_random_exponential, stop_after_attempt
 
+@retry(wait=wait_random_exponential(multiplier=1, max=10), stop=stop_after_attempt(3))
 def web_search(query:str,timelimit:str,max_results:int):
     """
     Search the web for the given query with the specified time limit and maximum number of results.
@@ -24,6 +26,7 @@ def web_search(query:str,timelimit:str,max_results:int):
 
     return results
 
+@retry(wait=wait_random_exponential(multiplier=1, max=10), stop=stop_after_attempt(3))
 def web_content_process(link: str, timeout: int = 10) -> str:
     """
     Process the content of the given link by using beautifulsoup.
@@ -52,3 +55,16 @@ def web_content_process(link: str, timeout: int = 10) -> str:
         main_content = soup.get_text(strip=True)
 
     return main_content
+
+def save_to_markdown(workspace:str,filename:str,text:str):
+    """
+    Save the given text to a markdown file.
+
+    Args:
+        workspace (str): The workspace to save the file.
+        filename (str): The filename to save.
+        text (str): The text to save.
+    """
+
+    with open(f"{workspace}/{filename}.md", "w") as f:
+        f.write(text)

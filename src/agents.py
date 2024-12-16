@@ -23,6 +23,17 @@ class Group:
         workspace: Optional[str] = None,
         manager:Union[Agent,bool] = None # if manager is True, the group will have a default manager or you can pass a Agent instance
     ):
+        """
+        Initializes the Group class.
+
+        Args:
+            env (Env): The environment settings of the group.
+            model_client (OpenAI): The model client for the group.
+            group_id (Optional[str], optional): The group ID. Defaults to None meaning a random UUID will be generated.
+            verbose (bool, optional): The verbosity of the group. Defaults to False.
+            workspace (Optional[str], optional): The workspace of the group. Defaults to None.
+            manager (Union[Agent,bool], optional): The manager of the group. Defaults to None.
+        """
         self._logger = Logger(verbose=verbose)
         self.fully_connected = False # will be updated in _rectify_relationships
         self.group_id:str = group_id if group_id else str(uuid.uuid4()) # unique group
@@ -101,72 +112,6 @@ class Group:
             self.current_agent = random.choice([m.name for m in self.env.members]) if self.env.members else None
             self._logger.log("info",f"current agent {member_name} is deleted, randomly select {self.current_agent} as the new current agent")
         self._logger.log("info",f"Successfully delete member {member_name}")
-
-    @retry(wait=wait_random_exponential(multiplier=1, max=40), stop=stop_after_attempt(3))
-    def handoff(
-            self,
-            handoff_max_turns:int=3,
-            next_speaker_select_mode:Literal["order","auto","auto2","random"]="auto2",
-            model:str="gpt-4o-mini",
-            include_current:bool = True
-    )->str:
-        """
-        Handoff the conversation to the next agent.
-
-        Args:
-            handoff_max_turns (int): The maximum number of turns to handoff. Defaults to 3.
-            next_speaker_select_mode (Literal["order","auto","auto2","random"]): The mode to select the next speaker. Defaults to "auto2".
-            model (str): The model to use for the handoff. Defaults to "gpt-4o-mini".
-            include_current (bool): Whether to include the current agent in the handoff. Defaults to True.
-        """
-        if self.fully_connected or next_speaker_select_mode in ["order","random"]:
-            handoff_max_turns = 1
-
-        visited_agent = set([self.current_agent])
-        next_agent = self.handoff_one_turn(next_speaker_select_mode, model, include_current)
-
-        while next_agent != self.current_agent and handoff_max_turns > 0:
-            if next_agent in visited_agent:
-                break 
-            self._logger.log("info",f"handoff from {self.current_agent} to {next_agent} by using {next_speaker_select_mode} mode")
-            self.current_agent = next_agent
-            visited_agent.add(next_agent)
-            next_agent = self.handoff_one_turn(next_speaker_select_mode,model,True)
-            handoff_max_turns -= 1
-
-        return self.current_agent
-
-    def handoff_one_turn(
-            self,
-            next_speaker_select_mode: Literal["order", "auto", "auto2", "random"] = "auto",
-            model: str = "gpt-4o-mini",
-            include_current: bool = True
-    ) -> str:
-        if next_speaker_select_mode == "order":
-            return next(self.member_iterator).name
-        elif next_speaker_select_mode == "random":
-            return random.choice([m.name for m in self.env.members])
-        elif next_speaker_select_mode in ("auto", "auto2"):
-            if not self.env.relationships[self.current_agent]:
-                return self.current_agent
-            return self._select_next_agent_auto(model, include_current, 
-                                                use_tool = next_speaker_select_mode == "auto")
-        else:
-            raise ValueError("next_speaker_select_mode should be one of 'order', 'auto', 'auto2', 'random'")
-
-    def update_group_messages(self, message:Union[Message,List[Message]]):
-        if isinstance(message,Message):
-            self.group_messages.context.append(message)
-        elif isinstance(message,list):
-            self.group_messages.context.extend(message)
-        else:
-            raise ValueError("message should be either Message or List[Message]")
-
-    def reset_group_messages(self):
-        """
-        Reset the group messages.
-        """
-        self.group_messages.context = []
 
     def user_input(self, message:str,action:str="talk",alias = None):
         """
@@ -250,6 +195,7 @@ class Group:
             strategy:Literal["sequential","hierarchical","auto"] = "auto",
             model:str="gpt-4o-mini",
             model_for_planning:str=None, # can manually set the model for planning for example gpt-4o
+            add_extra_task:bool = True # whether to add extra task after each task for auto strategy
         ) -> List[Message]:
         """
         Execute a task with the given strategy.
@@ -273,10 +219,78 @@ class Group:
         elif strategy == "hierarchical":
             return self._task_hierarchical(task,model)
         elif strategy == "auto":
-            return self._task_auto(task,model,model_for_planning)
+            return self._task_auto(task,model,model_for_planning,add_extra_task)
         else:
             raise ValueError("strategy should be one of 'sequential' or 'hierarchical' or 'auto'")
         
+
+    @retry(wait=wait_random_exponential(multiplier=1, max=40), stop=stop_after_attempt(3))
+    def handoff(
+            self,
+            handoff_max_turns:int=3,
+            next_speaker_select_mode:Literal["order","auto","auto2","random"]="auto2",
+            model:str="gpt-4o-mini",
+            include_current:bool = True
+    )->str:
+        """
+        Handoff the conversation to the next agent.
+
+        Args:
+            handoff_max_turns (int): The maximum number of turns to handoff. Defaults to 3.
+            next_speaker_select_mode (Literal["order","auto","auto2","random"]): The mode to select the next speaker. Defaults to "auto2".
+            model (str): The model to use for the handoff. Defaults to "gpt-4o-mini".
+            include_current (bool): Whether to include the current agent in the handoff. Defaults to True.
+        """
+        if self.fully_connected or next_speaker_select_mode in ["order","random"]:
+            handoff_max_turns = 1
+
+        visited_agent = set([self.current_agent])
+        next_agent = self.handoff_one_turn(next_speaker_select_mode, model, include_current)
+
+        while next_agent != self.current_agent and handoff_max_turns > 0:
+            if next_agent in visited_agent:
+                break 
+            self._logger.log("info",f"handoff from {self.current_agent} to {next_agent} by using {next_speaker_select_mode} mode")
+            self.current_agent = next_agent
+            visited_agent.add(next_agent)
+            next_agent = self.handoff_one_turn(next_speaker_select_mode,model,True)
+            handoff_max_turns -= 1
+
+        return self.current_agent
+
+    def handoff_one_turn(
+            self,
+            next_speaker_select_mode: Literal["order", "auto", "auto2", "random"] = "auto",
+            model: str = "gpt-4o-mini",
+            include_current: bool = True
+    ) -> str:
+        if next_speaker_select_mode == "order":
+            return next(self.member_iterator).name
+        elif next_speaker_select_mode == "random":
+            return random.choice([m.name for m in self.env.members])
+        elif next_speaker_select_mode in ("auto", "auto2"):
+            if not self.env.relationships[self.current_agent]:
+                return self.current_agent
+            return self._select_next_agent_auto(model, include_current, 
+                                                use_tool = next_speaker_select_mode == "auto")
+        else:
+            raise ValueError("next_speaker_select_mode should be one of 'order', 'auto', 'auto2', 'random'")
+
+    def update_group_messages(self, message:Union[Message,List[Message]]):
+        if isinstance(message,Message):
+            self.group_messages.context.append(message)
+        elif isinstance(message,list):
+            self.group_messages.context.extend(message)
+        else:
+            raise ValueError("message should be either Message or List[Message]")
+
+    def reset_group_messages(self):
+        """
+        Reset the group messages.
+        """
+        self.group_messages.context = []
+
+
     def draw_relations(self):
         """ 
         Returns:
@@ -430,7 +444,7 @@ class Group:
         self._logger.log("info","Task finished")
         return response
 
-    def _task_auto(self,task:str,model:str="gpt-4o-mini",model_for_planning:str=None):
+    def _task_auto(self,task:str,model:str="gpt-4o-mini",model_for_planning:str=None,add_extra_task:bool = True):
 
         tasks = self._planning(task, model_for_planning if model_for_planning else model)
 
@@ -447,14 +461,17 @@ class Group:
             step += 1
             self._logger.log("info",f"===> Step {step} for {t.agent_name} \n\ndo task: {t.task} \n\nreceive information from: {t.receive_information_from}")
             self.set_current_agent(t.agent_name)
-            message_send = self._build_auto_task_message(t,cut_off=2,model=model) 
+            message_send = self._build_auto_task_message(t,cut_off=3,model=model)
             response = self.members_map[t.agent_name].do(message_send,model)
             self.update_group_messages(response)
             for r in response:
                 self._logger.log("info",f"Agent {self.current_agent} response:\n\n{r.result}",color="bold_purple")
+            if add_extra_task:
+                self._extra_planning(task = task,plan = tasks,current_task = t,current_response = response,
+                                     model_for_planning = model_for_planning if model_for_planning else model,model=model,step=step)
         self._logger.log("info","Task finished")
         return response
-    
+
     def _build_auto_task_message(self,task,cut_off:int=None,model:str="gpt-4o-mini"):
         if cut_off < 1:
             cut_off = None
@@ -494,6 +511,8 @@ class Group:
             f"Please respond to the task."
         )
 
+        if self.workspace is not None:
+            prompt = f"### Workspace\n{self.group_workspace}\n\n" + prompt
         if self.env.language is not None:
             prompt += f"\n\n### Response in Language: {self.env.language}\n"
 
@@ -541,10 +560,12 @@ class Group:
             f"### Task for Planning\n"
             f"```\n{task}\n```\n\n"
             f"### Strategy\n"
-            f"First, evaluate team members' skills and availability to form a balanced group, ensuring a mix of competencies and manageable workloads. "
+            f"First, evaluate team members' skills and availability to form a balanced group, ensuring a mix of competencies and expertise."
             f"Then, break the main task into prioritized sub-tasks and assign them based on expertise"
         )
 
+        if self.workspace is not None:
+            prompt = f"### Workspace\n{self.group_workspace}\n\n" + prompt
         if self.env.language is not None:
             prompt += f"\n\n### Response in Language: {self.env.language}\n"
 
@@ -586,6 +607,8 @@ class Group:
             f"response in a concise and clear sentence."
         )
 
+        if self.workspace is not None:
+            feedback_prompt = f"### Workspace\n{self.group_workspace}\n\n" + feedback_prompt
         if self.env.language is not None:
             feedback_prompt += f"\n\n### Response in Language: {self.env.language}\n"
 
@@ -635,6 +658,8 @@ class Group:
             f"and make necessary adjustments to improve the plan's effectiveness and feasibility. "
         )
 
+        if self.workspace is not None:
+            prompt = f"### Workspace\n{self.group_workspace}\n\n" + prompt
         if self.env.language is not None:
             prompt += f"\n\n### Response in Language: {self.env.language}\n"
 
@@ -650,13 +675,115 @@ class Group:
         self._logger.log("info","Revising the plan finished")
         return completion.choices[0].message.parsed.tasks
 
+
+    def _extra_planning(self,task:str,plan:list,
+                        current_task,current_response:str,
+                        model_for_planning:str="gpt-4o",
+                        model:str="gpt-4o-mini",
+                        step:int = 1
+                        ):
+
+        self._logger.log("info",f"Decide weather to assign extra tasks for {current_task.agent_name} in step {step}...")
+        class ExtraTasks(BaseModel):
+            add_extra_tasks:bool
+            tasks:List[str]
+
+        current_agent = self.members_map[current_task.agent_name]
+
+        current_agent_description = f"- {current_agent.name} ({current_agent.role})" + (f" [tools available: {', '.join([x.__name__ for x in current_agent.tools])}]" if current_agent.tools else "")
+
+        prompt = (
+            f"### Contextual Information\n"
+            f"{self.env.description}\n\n"
+            f"### Task for Planning\n"
+            f"```\n{task}\n```\n\n"
+            f"### Task Plan\n"
+            f"```\n{plan}\n```\n\n"
+            f"### Current Task\n"
+            f"```\n{current_task.task}\n```\n\n"
+            f"### Current Agent\n"
+            f"{current_agent_description}\n\n"
+            f"### Current Response\n"
+            f"```\n{current_response}\n```\n\n"
+            f"Evaluate the agent's current response for the task and determine whether additional tasks are necessary. "
+            "If the response meets the requirements, select 'No' to avoid assigning more tasks. "
+            "If the response falls short, provide the agent with additional tasks that are appropriate for their capabilities."
+        )
+
+        if self.workspace is not None:
+            prompt = f"### Workspace\n{self.group_workspace}\n\n" + prompt
+        if self.env.language is not None:
+            prompt += f"\n\n### Response in Language: {self.env.language}\n"
+
+        planner_assistant_prompt = (
+            "As a planner assistant, you play a crucial role in supporting the planning process by providing valuable insights and suggestions."
+            "Your feedback can help optimize task allocation and improve overall project efficiency."
+            "Review the current task, agent response, and existing plan, then decide whether additional tasks are needed."
+        )
+        
+        messages = [{"role": "system", "content": planner_assistant_prompt}]
+        messages.extend([{"role": "user", "content": prompt}])
+
+        completion = self.model_client.beta.chat.completions.parse(
+            model=model_for_planning,
+            messages=messages,
+            temperature=0.0,
+            response_format=ExtraTasks,
+        )
+
+        extra_tasks = []
+        if completion.choices[0].message.parsed.add_extra_tasks:
+            extra_tasks =  completion.choices[0].message.parsed.tasks
+            extra_response_list = []
+            for index,extra_task in enumerate(extra_tasks):
+                self._logger.log("info",f"===> Extra task {index+1} for {current_task.agent_name} in step {step} \n\ndo task: {extra_task}")
+                prompt = (
+                    f"### Main Task\n"
+                    f"{task}\n\n"
+                    f"### Current Task\n"
+                    f"{current_task.task}\n\n"
+                    f"### Current Response\n"
+                    f"{current_response}\n\n"
+                    f"### Current Agent\n"
+                    f"{current_agent_description}\n\n"
+                    f"### Extra Task for Current Agent\n"
+                    f"{extra_task}\n\n"
+                    f"Please respond to the extra task."
+                )
+
+                if self.workspace is not None:
+                    prompt = f"### Workspace\n{self.group_workspace}\n\n" + prompt
+                if self.env.language is not None:
+                    prompt += f"\n\n### Response in Language: {self.env.language}\n"
+                    
+                response = self.members_map[current_task.agent_name].do(prompt,model)
+                extra_response_list.append(response)
+            prompt = (
+                f"### Extra Tasks\n"
+                f"{extra_tasks}\n\n"
+                f"### Extra Task Response\n"
+                f"{extra_response_list}\n\n"
+                f"Please summarize the extra task responses into concise and clear points."
+            )
+
+            if self.env.language is not None:
+                prompt += f"\n\n### Response in Language: {self.env.language}\n"
+
+            response = self.members_map[current_task.agent_name].do(prompt,model,False) # do not use tools here
+            self.update_group_messages(response)
+            for r in response:
+                self._logger.log("info",f"Agent {current_task.agent_name} response (extra task summary):\n\n{r.result}",color="bold_purple")
+        else:
+            self._logger.log("info",f"Do not need to add extra tasks for {current_task.agent_name} in step {step}")
+
+
     def _create_manager(self,manager:Union[Agent,bool]):
         # planner and moderator
         if manager == True:
             self.manager = Agent(name=f"GroupManager-{self.group_id}",
                                  role="Manager",
                                  description="The manager of the group",
-                                 backstory="The manager is responsible for planning and moderating the group conversation",
+                                 persona="The manager is responsible for planning and moderating the group conversation",
                                  model_client=self.model_client,
                                  verbose=self._logger.verbose)
             self._logger.log("info","Create a default manager for the group")
@@ -758,6 +885,9 @@ class Group:
             elif self.group_messages.context[-1].action == "talk":
                 current_user_message = self.group_messages.context[-1].result
                 prompt += f"\n\n### Current User's Input\n{current_user_message}\n\n"
+
+        if self.workspace is not None:
+            prompt = f"### Workspace\n{self.group_workspace}\n\n" + prompt
 
         if self.env.language is not None:
             prompt += f"\n\n### Response in Language: {self.env.language}\n"
