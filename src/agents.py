@@ -695,19 +695,18 @@ class Group:
         prompt = (
             f"### Contextual Information\n"
             f"{self.env.description}\n\n"
-            f"### Task for Planning\n"
+            f"### Task Overview\n"
             f"```\n{task}\n```\n\n"
-            f"### Task Plan\n"
+            f"### Proposed Task Plan\n"
             f"```\n{plan}\n```\n\n"
-            f"### Current Task\n"
-            f"```\n{current_task.task}\n```\n\n"
-            f"### Current Agent\n"
+            f"### Current Agent Profile\n"
             f"{current_agent_description}\n\n"
+            f"### Current Task Details\n"
+            f"```\n{current_task.task}\n```\n\n"
             f"### Current Response\n"
             f"```\n{current_response}\n```\n\n"
-            f"Evaluate the agent's current response for the task and determine whether additional tasks are necessary. "
-            "If the response meets the requirements, select 'No' to avoid assigning more tasks. "
-            "If the response falls short, provide the agent with additional tasks that are appropriate for their capabilities."
+            f"### Inquiry\n"
+            f"Given the information above, do you think we should add any additional tasks for {current_task.agent_name} to enhance their effectiveness?"
         )
 
         if self.workspace is not None:
