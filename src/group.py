@@ -406,6 +406,7 @@ class Group:
             for r in response:
                 self._logger.log("info",f"Agent {self.current_agent} response:\n\n{r.result}",color="bold_purple")
 
+            # extra tasks for each step
             extra_tasks = self.planner.in_transit_revisions(t,response,model_for_planning if model_for_planning else model)
             for index,et in enumerate(extra_tasks):
                 self._logger.log("info",f"===> Extra Task {index+1} for {et.agent_name} \n\ndo task: {et.task} \n\nreceive information from: {et.receive_information_from}")
@@ -423,7 +424,7 @@ class Group:
             cut_off = None
         agent_name = task.agent_name
         task_deatil = task.task
-        receive_information_from = task.receive_information_from
+        receive_information_from = set(task.receive_information_from)
 
         members_description = "\n".join([f"- {m.name} ({m.role})" for m in self.env.members])
 

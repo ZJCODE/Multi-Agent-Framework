@@ -197,7 +197,7 @@ class GroupPlanner:
 
         members_description = "\n".join([f"- {m.name} ({m.role})" + (f" [tools available: {', '.join([x.__name__ for x in m.tools])}]" if m.tools else "") for m in self.env.members])
 
-        member_list = ",".join([f'"{m.name}"' for m in self.env.members]) # for pydantic Literal
+        member_list = f'"{current_task.agent_name}"' # for pydantic Literal
 
         class_str = (
             f"class Task(BaseModel):\n"
@@ -227,7 +227,7 @@ class GroupPlanner:
             f"### Current Response\n"
             f"```\n{current_response}\n```\n\n"
             f"### Decision Point\n"
-            f"Based on the information above, decide whether to assign extra tasks before proceeding with the next task in the plan. "
+            f"Based on the information above, decide whether to assign extra tasks to current agent before proceeding with the next task in the plan. "
             f"Consider:\n"
             f"1. Does the current response fully meet the requirements of the current task?\n"
             f"2. Are there any unresolved dependencies or prerequisites that must be addressed before moving forward?\n"
@@ -255,4 +255,8 @@ class GroupPlanner:
         
         extra_task = completion.choices[0].message.parsed.tasks
     
+        tasks_str = "\n\n".join([f"Step {i+1}: {t.agent_name}\n{t.task}\nreceive information from: {t.receive_information_from}\n" for i,t in enumerate(extra_task)])
+
+        self._logger.log("info",f"Extra Task:\n{tasks_str}",color="bold_blue")
+
         return extra_task

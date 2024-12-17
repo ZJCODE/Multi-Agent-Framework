@@ -26,14 +26,14 @@ def web_search(query:str,timelimit:str,max_results:int):
 
     for result in results[:DETAIL_N]:
         try:
-            result['content'] = web_content_process(result['href'], timeout=10)
+            result['content'] = web_content_extract(result['href'], timeout=10)
         except Exception as e:
             pass
 
     return results
 
 @retry(wait=wait_random_exponential(multiplier=1, max=10), stop=stop_after_attempt(3))
-def web_content_process(link: str) -> str:
+def web_content_extract(link: str) -> str:
     """
     Process the content of the given link by using beautifulsoup.
 
