@@ -406,6 +406,15 @@ class Group:
             for r in response:
                 self._logger.log("info",f"Agent {self.current_agent} response:\n\n{r.result}",color="bold_purple")
 
+            extra_tasks = self.planner.in_transit_revisions(t,response,model_for_planning if model_for_planning else model)
+            for index,et in enumerate(extra_tasks):
+                self._logger.log("info",f"===> Extra Task {index+1} for {et.agent_name} \n\ndo task: {et.task} \n\nreceive information from: {et.receive_information_from}")
+                self.set_current_agent(et.agent_name)
+                message_send = self._build_auto_task_message(et,cut_off=3,model=model)
+                response = self.members_map[et.agent_name].do(message_send,model)
+                self.update_group_messages(response)
+                for r in response:
+                    self._logger.log("info",f"Agent {self.current_agent} response(extra task):\n\n{r.result}",color="bold_purple")
         self._logger.log("info","Task finished")
         return response
 

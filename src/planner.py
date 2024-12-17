@@ -12,6 +12,23 @@ class GroupPlanner:
         self.plan = []
         self._logger = Logger(verbose=verbose)
 
+        self.planner_prompt = (
+            "As an experienced planner with strong analytical and organizational skills, your role is to analyze tasks and delegate sub-tasks to group members.\n"
+            "1. Analyze Tasks:\n"
+            "   - Break down the main task into smaller, manageable sub-tasks.\n"
+            "   - Identify dependencies and determine the order in which tasks need to be completed.\n"
+            "2. Assess Member Capabilities:\n"
+            "   - Evaluate the skills and strengths of each team member to match them with appropriate tasks.\n"
+            "3. Delegate Sub-Tasks:\n"
+            "   - Assign each sub-task to the most suitable team member.\n"
+            "   - Ensure that each task includes:\n"
+            "     - The agent's name.\n"
+            "     - A clear task description.\n"
+            "     - A list of agents from whom they need to receive information (if applicable).\n"
+            "4. Consider Task Order:\n"
+            "   - Arrange tasks in a logical sequence, considering dependencies and the flow of information.\n"
+        )
+
     def set_task(self,task:str):
         """
         Set the task for the group.
@@ -48,12 +65,7 @@ class GroupPlanner:
 
         members_description = "\n".join([f"- {m.name} ({m.role})" + (f" [tools available: {', '.join([x.__name__ for x in m.tools])}]" if m.tools else "") for m in self.env.members])
 
-        planner_prompt = (
-        "As an experienced planner with strong analytical and organizational skills, your role is to analyze tasks and delegate sub-tasks to group members." 
-        "Ensure efficient completion by considering task order, member capabilities, and resource allocation." 
-        "Communicate clearly and adapt to changing circumstances." 
-        "Each task should include the agent's name, the task description, and a list of agents from whom they need to receive information (this list can be empty)."
-        )
+
 
         prompt = (
             f"### Contextual Information\n"
@@ -70,7 +82,7 @@ class GroupPlanner:
         if self.env.language is not None:
             prompt += f"\n\n### Response in Language: {self.env.language}\n"
 
-        messages = [{"role": "system", "content": planner_prompt}]
+        messages = [{"role": "system", "content": self.planner_prompt}]
 
         messages.extend([{"role": "user", "content": prompt}])
         
@@ -143,13 +155,6 @@ class GroupPlanner:
 
         response_format = eval("Tasks")
 
-        planner_prompt = (
-        "As an experienced planner with strong analytical and organizational skills, your role is to analyze tasks and delegate sub-tasks to group members." 
-        "Ensure efficient completion by considering task order, member capabilities, and resource allocation." 
-        "Communicate clearly and adapt to changing circumstances." 
-        "Each task should include the agent's name, the task description, and a list of agents from whom they need to receive information (this list can be empty)."
-        )
-
         prompt = (
             f"### Contextual Information\n"
             f"{self.env.description}\n\n"
@@ -168,7 +173,7 @@ class GroupPlanner:
         if self.env.language is not None:
             prompt += f"\n\n### Response in Language: {self.env.language}\n"
 
-        messages = [{"role": "system", "content": planner_prompt}]
+        messages = [{"role": "system", "content": self.planner_prompt}]
         messages.extend([{"role": "user", "content": prompt}])
         
         completion = self.model_client.beta.chat.completions.parse(
@@ -187,33 +192,46 @@ class GroupPlanner:
 
     def in_transit_revisions(self,current_task,current_response:str,model:str="gpt-4o-mini"):
 
-        self._logger.log("info",f"Decide weather to assign extra tasks for {current_task.agent_name}")
+        self._logger.log("info",f"Decide weather to assign extra tasks before next task in the plan")
 
-        class ExtraTasks(BaseModel):
-            add_extra_tasks:bool
-            tasks:List[str]
 
-        current_agent = next((m for m in self.env.members if m.name == current_task.agent_name), None)
+        members_description = "\n".join([f"- {m.name} ({m.role})" + (f" [tools available: {', '.join([x.__name__ for x in m.tools])}]" if m.tools else "") for m in self.env.members])
 
-        current_agent_description = f"- {current_agent.name} ({current_agent.role})" + (f" [tools available: {', '.join([x.__name__ for x in current_agent.tools])}]" if current_agent.tools else "")
+        member_list = ",".join([f'"{m.name}"' for m in self.env.members]) # for pydantic Literal
+
+        class_str = (
+            f"class Task(BaseModel):\n"
+            f"    agent_name:Literal[{member_list}]\n"
+            f"    task:str\n"
+            f"    receive_information_from:List[Literal[{member_list}]]\n"
+            f""
+            f"class Tasks(BaseModel):\n"
+            f"    tasks:List[Task]\n"
+        )
+        
+        exec(class_str, globals())
+
+        response_format = eval("Tasks")
 
         prompt = (
             f"### Contextual Information\n"
             f"{self.env.description}\n\n"
+            f"### Potential Members\n"
+            f"{members_description}\n\n"
             f"### Task Overview\n"
             f"```\n{self.task}\n```\n\n"
             f"### Proposed Task Plan\n"
             f"```\n{self.plan}\n```\n\n"
-            f"### Current Agent Profile\n"
-            f"{current_agent_description}\n\n"
             f"### Current Task Details\n"
             f"```\n{current_task.task}\n```\n\n"
             f"### Current Response\n"
             f"```\n{current_response}\n```\n\n"
-            f"### Inquiry\n"
-            f"Given the information above, do you think we should add any additional tasks for current agent? Yes/No for add extra tasks."
-            f"Make sure to consider the agent's skills, availability, and the project's requirements."
-            f"If you choose to add extra tasks,Please provide a clear and concise response, the task description should include sufficient details to let the agent do the task standalone."
+            f"### Decision Point\n"
+            f"Based on the information above, decide whether to assign extra tasks before proceeding with the next task in the plan. "
+            f"Consider:\n"
+            f"1. Does the current response fully meet the requirements of the current task?\n"
+            f"2. Are there any unresolved dependencies or prerequisites that must be addressed before moving forward?\n"
+            f"3. Is there a need for further clarification or information before proceeding to the next task?\n"
         )
 
         if self.env.language is not None:
@@ -232,13 +250,9 @@ class GroupPlanner:
             model=model,
             messages=messages,
             temperature=0.0,
-            response_format=ExtraTasks,
+            response_format=response_format,
         )
-
-        if completion.choices[0].message.parsed.add_extra_tasks:
-            self._logger.log("info","Extra tasks are needed, adding extra tasks to the plan")
-            extra_tasks = completion.choices[0].message.parsed.tasks
-            return extra_tasks
-        else:
-            self._logger.log("info","No extra tasks needed")
-            return None
+        
+        extra_task = completion.choices[0].message.parsed.tasks
+    
+        return extra_task
