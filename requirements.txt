@@ -7,3 +7,4 @@ pyyaml
 duckduckgo_search
 beautifulsoup4
 requests
+tavily-python

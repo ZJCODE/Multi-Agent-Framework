@@ -9,7 +9,7 @@ from typing import Dict, Optional, Literal, Tuple,List,Union
 from utilities.logger import Logger
 
 from protocol import Member, Env, Message, GroupMessageProtocol
-from agent import Agent
+from planner import GroupPlanner
 import os
 import datetime
 
@@ -20,8 +20,7 @@ class Group:
         model_client: OpenAI,
         group_id: Optional[str] = None,
         verbose: bool = False,
-        workspace: Optional[str] = None,
-        manager:Union[Agent,bool] = None # if manager is True, the group will have a default manager or you can pass a Agent instance
+        workspace: Optional[str] = None
     ):
         """
         Initializes the Group class.
@@ -35,12 +34,14 @@ class Group:
             manager (Union[Agent,bool], optional): The manager of the group. Defaults to None.
         """
         self._logger = Logger(verbose=verbose)
+        self.verbose = verbose
         self.fully_connected = False # will be updated in _rectify_relationships
         self.group_id:str = group_id if group_id else str(uuid.uuid4()) # unique group
         self.workspace = workspace
         self._create_group_workspace()
         self.env: Env = env
         self.model_client: OpenAI = model_client # currently only supports OpenAI synthetic API
+        self.planner: GroupPlanner = None
         self.current_agent: Optional[str] = self.env.members[0].name # default current agent is the first agent in the members list
         self.members_map: Dict[str, Member] = {m.name: m for m in self.env.members}
         self.member_iterator = itertools.cycle(self.env.members)
@@ -48,7 +49,6 @@ class Group:
         self._set_env_public()
         self._update_response_format_maps()
         self.group_messages: GroupMessageProtocol = GroupMessageProtocol(group_id=self.group_id,env=self.env_public)
-        self._create_manager(manager)
 
     def set_current_agent(self, agent_name: str):
         """
@@ -87,6 +87,7 @@ class Group:
         self._set_env_public()
         self._update_response_format_maps()
         self.group_messages.env = self.env_public
+        if self.planner: self.planner.env = self.env
         self._logger.log("info",f"Succesfully add member {member.name}")
 
     def delete_member(self, member_name:str):
@@ -107,6 +108,7 @@ class Group:
         self._set_env_public()
         self._update_response_format_maps()
         self.group_messages.env = self.env_public
+        if self.planner: self.planner.env = self.env
 
         if self.current_agent == member_name:
             self.current_agent = random.choice([m.name for m in self.env.members]) if self.env.members else None
@@ -152,23 +154,6 @@ class Group:
             self._logger.log("info",f"Agent {self.current_agent} response:\n\n{r.result}",color="bold_purple")
         return response
 
-    def call_manager(self,model:str="gpt-4o-mini",message_cut_off:int=5) -> List[Message]:
-        """
-        Call the manager to respond to the group messages.
-        """
-        if not self.manager:
-            self._logger.log("warning","No manager in the group , you can set the manager in Group initialization",color="red")
-            return
-        message_send = self._build_send_message(cut_off=message_cut_off,send_to=self.manager.name)
-        response = self.manager.do(message_send,model)
-        self.update_group_messages(response)
-        self._logger.log("info",f"Call manager {self.manager.name}",color="bold_green")
-        for r in response:
-            self._logger.log("info",f"Manager {self.manager.name} response: {r.result}",color="bold_purple")
-
-        return response
-
-
     def talk(
             self, 
             message:str,
@@ -195,7 +180,6 @@ class Group:
             strategy:Literal["sequential","hierarchical","auto"] = "auto",
             model:str="gpt-4o-mini",
             model_for_planning:str=None, # can manually set the model for planning for example gpt-4o
-            add_extra_task:bool = True # whether to add extra task after each task for auto strategy
         ) -> List[Message]:
         """
         Execute a task with the given strategy.
@@ -204,6 +188,7 @@ class Group:
             task (str): The task to execute.
             strategy (Literal["sequential","hierarchical","auto"], optional): The strategy to use for the task. Defaults to "auto".
             model (str, optional): The model to use for the task. Defaults to "gpt-4o-mini".
+            model_for_planning (str, optional): The model to use for the planning. Defaults to None.
 
         Returns:
             List[Message]: The response
@@ -219,7 +204,7 @@ class Group:
         elif strategy == "hierarchical":
             return self._task_hierarchical(task,model)
         elif strategy == "auto":
-            return self._task_auto(task,model,model_for_planning,add_extra_task)
+            return self._task_auto(task,model,model_for_planning)
         else:
             raise ValueError("strategy should be one of 'sequential' or 'hierarchical' or 'auto'")
         
@@ -355,55 +340,6 @@ class Group:
                 if member_name in v:
                     v.remove(member_name)
 
-
-    def _update_response_format_maps(self):
-        """
-        Update the next choice response format maps.
-        """
-        self.next_choice_response_format_map: Dict[str, BaseModel] = self._build_next_choice_response_format_map(False)
-        self.next_choice_response_format_map_include_current: Dict[str, BaseModel] = self._build_next_choice_response_format_map(True)
-
-
-    def _set_env_public(self):
-        self.env_public = Env(
-            description=self.env.description,
-            members=[Member(name=m.name, role=m.role, description=m.description) for m in self.env.members],
-            relationships=self.env.relationships,
-            language=self.env.language
-        )
-
-    def _build_current_agent_handoff_tools(self, include_current_agent:bool = False):
-        handoff_tools = [self._build_agent_handoff_tool_function(self.members_map[self.current_agent])] if include_current_agent else []
-        handoff_tools.extend(self._build_agent_handoff_tool_function(self.members_map[agent]) for agent in self.env.relationships[self.current_agent])
-        return handoff_tools
-
-    def _build_next_choice_response_format_map(self,include_current:bool = False):
-        """
-        
-        """
-        response_format_map = {}
-        if include_current:
-            for k,v in self.env.relationships.items():
-                agent_name_list = ",".join([f'"{i}"' for i in v+[k]])
-                class_str = (
-                    f"class SelectFor{k}IncludeCurrent(BaseModel):\n"
-                    f"    agent_name:Literal[{agent_name_list}]\n"
-                )
-                exec(class_str)
-                response_format_map.update({k:eval(f"SelectFor{k}IncludeCurrent")})
-        else:
-            for k,v in self.env.relationships.items():
-                if len(v) == 0:
-                    continue
-                agent_name_list = ",".join([f'"{i}"' for i in v])
-                class_str = (
-                    f"class SelectFor{k}ExcludeCurrent(BaseModel):\n"
-                    f"    agent_name:Literal[{agent_name_list}]\n"
-                )
-                exec(class_str)
-                response_format_map.update({k:eval(f"SelectFor{k}ExcludeCurrent")})
-        return response_format_map
-
     def _select_next_agent_auto(self, model: str, include_current: bool, use_tool: bool) -> str:
 
         messages = [{"role": "system", "content": "Decide who should be the next person to talk. Transfer the conversation to the next person."}]
@@ -444,19 +380,19 @@ class Group:
         self._logger.log("info","Task finished")
         return response
 
-    def _task_auto(self,task:str,model:str="gpt-4o-mini",model_for_planning:str=None,add_extra_task:bool = True):
+    def _task_auto(self,task:str,model:str="gpt-4o-mini",model_for_planning:str=None):
 
-        tasks = self._planning(task, model_for_planning if model_for_planning else model)
+        if self.planner is None:
+            self.planner = GroupPlanner(env=self.env,model_client=self.model_client,verbose=self.verbose)
+            self._logger.log("info","Group Planner initialized (used for planning and managing group tasks)")
 
-        tasks_str = "\n".join([f"{t.json()}" for t in tasks])
-        self._logger.log("info",f"Initial plan is \n\n{tasks_str}",color="bold_blue")
-
-        tasks = self._revise_plan(task,tasks,model_for_planning if model_for_planning else model)
-        tasks_str = "\n".join([f"{t.json()}" for t in tasks])
-        self._logger.log("info",f"Revised plan is \n\n{tasks_str}",color="bold_blue")
+        self.planner.set_task(task)
+        self.planner.planning(model_for_planning if model_for_planning else model)
+        self.planner.revise_plan(model_for_planning if model_for_planning else model)
+        tasks = self.planner.plan
 
         step = 0
-        self._logger.log("info",f"Start task: {task}")
+        self._logger.log("info",f"Start Task ...")
         for t in tasks:
             step += 1
             self._logger.log("info",f"===> Step {step} for {t.agent_name} \n\ndo task: {t.task} \n\nreceive information from: {t.receive_information_from}")
@@ -466,9 +402,7 @@ class Group:
             self.update_group_messages(response)
             for r in response:
                 self._logger.log("info",f"Agent {self.current_agent} response:\n\n{r.result}",color="bold_purple")
-            if add_extra_task:
-                self._extra_planning(task = task,plan = tasks,current_task = t,current_response = response,
-                                     model_for_planning = model_for_planning if model_for_planning else model,model=model,step=step)
+
         self._logger.log("info","Task finished")
         return response
 
@@ -517,279 +451,6 @@ class Group:
             prompt += f"\n\n### Response in Language: {self.env.language}\n"
 
         return prompt
-
-    def _planning(self,task:str,model:str="gpt-4o-mini"):
-        """
-        Plan the task and assign sub-tasks to the members.
-
-        Args:
-            task (str): The task to plan.
-            model (str): The model to use for planning.
-        """
-        self._logger.log("info","Start planning the task")
-        member_list = ",".join([f'"{m.name}"' for m in self.env.members])
-
-        class_str = (
-            f"class Task(BaseModel):\n"
-            f"    agent_name:Literal[{member_list}]\n"
-            f"    task:str\n"
-            f"    receive_information_from:List[Literal[{member_list}]]\n"
-            f""
-            f"class Tasks(BaseModel):\n"
-            f"    tasks:List[Task]\n"
-        )
-        
-        exec(class_str, globals())
-
-        response_format = eval("Tasks")
-
-        members_description = "\n".join([f"- {m.name} ({m.role})" + (f" [tools available: {', '.join([x.__name__ for x in m.tools])}]" if m.tools else "") for m in self.env.members])
-
-        planner_prompt = (
-        "As an experienced planner with strong analytical and organizational skills, your role is to analyze tasks and delegate sub-tasks to group members." 
-        "Ensure efficient completion by considering task order, member capabilities, and resource allocation." 
-        "Communicate clearly and adapt to changing circumstances." 
-        "Each task should include the agent's name, the task description, and a list of agents from whom they need to receive information (this list can be empty)."
-        )
-
-        prompt = (
-            f"### Contextual Information\n"
-            f"{self.env.description}\n\n"
-            f"### Potential Members\n"
-            f"{members_description}\n\n"
-            f"### Task for Planning\n"
-            f"```\n{task}\n```\n\n"
-            f"### Strategy\n"
-            f"First, evaluate team members' skills and availability to form a balanced group, ensuring a mix of competencies and expertise."
-            f"Then, break the main task into prioritized sub-tasks and assign them based on expertise"
-        )
-
-        if self.workspace is not None:
-            prompt = f"### Workspace\n{self.group_workspace}\n\n" + prompt
-        if self.env.language is not None:
-            prompt += f"\n\n### Response in Language: {self.env.language}\n"
-
-        messages = [{"role": "system", "content": planner_prompt}]
-
-
-        messages.extend([{"role": "user", "content": prompt}])
-        
-        completion = self.model_client.beta.chat.completions.parse(
-            model=model,
-            messages=messages,
-            temperature=0.0,
-            response_format=response_format,
-        )
-        self._logger.log("info","Planning finished")
-        return completion.choices[0].message.parsed.tasks
-
-    def _revise_plan(self,task:str,init_paln:list,model:str="gpt-4o-mini"):
-        
-        self._logger.log("info","Start revising the plan")
-
-        member_list = ",".join([f'"{m.name}"' for m in self.env.members])
-
-        members_description = "\n".join([f"- {m.name} ({m.role})" + (f" [tools available: {', '.join([x.__name__ for x in m.tools])}]" if m.tools else "") for m in self.env.members])
-
-        self._logger.log("info","Get feedback from the members")
-
-        feedback_prompt = (
-            f"### Contextual Information\n"
-            f"{self.env.description}\n\n"
-            f"### Potential Members\n"
-            f"{members_description}\n\n"
-            f"### Task for Planning\n"
-            f"```\n{task}\n```\n\n"
-            f"### Initial Plan\n"
-            f"```\n{init_paln}\n```\n\n"
-            f"Please review the initial plan and offer constructive feedback, "
-            f"highlighting any improvements or adjustments that could enhance the project's success, "
-            f"response in a concise and clear sentence."
-        )
-
-        if self.workspace is not None:
-            feedback_prompt = f"### Workspace\n{self.group_workspace}\n\n" + feedback_prompt
-        if self.env.language is not None:
-            feedback_prompt += f"\n\n### Response in Language: {self.env.language}\n"
-
-        feedbacks = []
-        for member in self.env.members:
-            response = self.members_map[member.name].do(feedback_prompt,model)
-            for r in response:
-                feedbacks.append(r)
-        
-        feedbacks_str = "\n".join([f"{f.sender}: {f.result}" for f in feedbacks])
-
-        self._logger.log("info",f"Feedbacks from the members:\n\n{feedbacks_str}",color="bold_blue")
-
-        class_str = (
-            f"class Task(BaseModel):\n"
-            f"    agent_name:Literal[{member_list}]\n"
-            f"    task:str\n"
-            f"    receive_information_from:List[Literal[{member_list}]]\n"
-            f""
-            f"class Tasks(BaseModel):\n"
-            f"    tasks:List[Task]\n"
-        )
-        
-        exec(class_str, globals())
-
-        response_format = eval("Tasks")        
-
-        planner_prompt = (
-        "As an experienced planner with strong analytical and organizational skills, your role is to analyze tasks and delegate sub-tasks to group members." 
-        "Ensure efficient completion by considering task order, member capabilities, and resource allocation." 
-        "Communicate clearly and adapt to changing circumstances." 
-        "Each task should include the agent's name, the task description, and a list of agents from whom they need to receive information (this list can be empty)."
-        )
-
-        prompt = (
-            f"### Contextual Information\n"
-            f"{self.env.description}\n\n"
-            f"### Potential Members\n"
-            f"{members_description}\n\n"
-            f"### Task for Planning\n"
-            f"```\n{task}\n```\n\n"
-            f"### Initial Plan\n"
-            f"```\n{init_paln}\n```\n\n"
-            f"### Feedbacks\n"
-            f"{feedbacks_str}\n\n"
-            f"Please revise the plan by addressing the feedback provided. Ensure that all concerns are considered,"
-            f"and make necessary adjustments to improve the plan's effectiveness and feasibility. "
-        )
-
-        if self.workspace is not None:
-            prompt = f"### Workspace\n{self.group_workspace}\n\n" + prompt
-        if self.env.language is not None:
-            prompt += f"\n\n### Response in Language: {self.env.language}\n"
-
-        messages = [{"role": "system", "content": planner_prompt}]
-        messages.extend([{"role": "user", "content": prompt}])
-        
-        completion = self.model_client.beta.chat.completions.parse(
-            model=model,
-            messages=messages,
-            temperature=0.0,
-            response_format=response_format,
-        )
-        self._logger.log("info","Revising the plan finished")
-        return completion.choices[0].message.parsed.tasks
-
-
-    def _extra_planning(self,task:str,plan:list,
-                        current_task,current_response:str,
-                        model_for_planning:str="gpt-4o",
-                        model:str="gpt-4o-mini",
-                        step:int = 1
-                        ):
-
-        self._logger.log("info",f"Decide weather to assign extra tasks for {current_task.agent_name} in step {step}...")
-        class ExtraTasks(BaseModel):
-            add_extra_tasks:bool
-            tasks:List[str]
-
-        current_agent = self.members_map[current_task.agent_name]
-
-        current_agent_description = f"- {current_agent.name} ({current_agent.role})" + (f" [tools available: {', '.join([x.__name__ for x in current_agent.tools])}]" if current_agent.tools else "")
-
-        prompt = (
-            f"### Contextual Information\n"
-            f"{self.env.description}\n\n"
-            f"### Task Overview\n"
-            f"```\n{task}\n```\n\n"
-            f"### Proposed Task Plan\n"
-            f"```\n{plan}\n```\n\n"
-            f"### Current Agent Profile\n"
-            f"{current_agent_description}\n\n"
-            f"### Current Task Details\n"
-            f"```\n{current_task.task}\n```\n\n"
-            f"### Current Response\n"
-            f"```\n{current_response}\n```\n\n"
-            f"### Inquiry\n"
-            f"Given the information above, do you think we should add any additional tasks for {current_task.agent_name} to enhance their effectiveness?"
-        )
-
-        if self.workspace is not None:
-            prompt = f"### Workspace\n{self.group_workspace}\n\n" + prompt
-        if self.env.language is not None:
-            prompt += f"\n\n### Response in Language: {self.env.language}\n"
-
-        planner_assistant_prompt = (
-            "As a planner assistant, you play a crucial role in supporting the planning process by providing valuable insights and suggestions."
-            "Your feedback can help optimize task allocation and improve overall project efficiency."
-            "Review the current task, agent response, and existing plan, then decide whether additional tasks are needed."
-        )
-        
-        messages = [{"role": "system", "content": planner_assistant_prompt}]
-        messages.extend([{"role": "user", "content": prompt}])
-
-        completion = self.model_client.beta.chat.completions.parse(
-            model=model_for_planning,
-            messages=messages,
-            temperature=0.0,
-            response_format=ExtraTasks,
-        )
-
-        extra_tasks = []
-        if completion.choices[0].message.parsed.add_extra_tasks:
-            extra_tasks =  completion.choices[0].message.parsed.tasks
-            extra_response_list = []
-            for index,extra_task in enumerate(extra_tasks):
-                self._logger.log("info",f"===> Extra task {index+1} for {current_task.agent_name} in step {step} \n\ndo task: {extra_task}")
-                prompt = (
-                    f"### Main Task\n"
-                    f"{task}\n\n"
-                    f"### Current Task\n"
-                    f"{current_task.task}\n\n"
-                    f"### Current Response\n"
-                    f"{current_response}\n\n"
-                    f"### Current Agent\n"
-                    f"{current_agent_description}\n\n"
-                    f"### Extra Task for Current Agent\n"
-                    f"{extra_task}\n\n"
-                    f"Please respond to the extra task."
-                )
-
-                if self.workspace is not None:
-                    prompt = f"### Workspace\n{self.group_workspace}\n\n" + prompt
-                if self.env.language is not None:
-                    prompt += f"\n\n### Response in Language: {self.env.language}\n"
-                    
-                response = self.members_map[current_task.agent_name].do(prompt,model)
-                extra_response_list.append(response)
-            prompt = (
-                f"### Extra Tasks\n"
-                f"{extra_tasks}\n\n"
-                f"### Extra Task Response\n"
-                f"{extra_response_list}\n\n"
-                f"Please summarize the extra task responses into concise and clear points."
-            )
-
-            if self.env.language is not None:
-                prompt += f"\n\n### Response in Language: {self.env.language}\n"
-
-            response = self.members_map[current_task.agent_name].do(prompt,model,False) # do not use tools here
-            self.update_group_messages(response)
-            for r in response:
-                self._logger.log("info",f"Agent {current_task.agent_name} response (extra task summary):\n\n{r.result}",color="bold_purple")
-        else:
-            self._logger.log("info",f"Do not need to add extra tasks for {current_task.agent_name} in step {step}")
-
-
-    def _create_manager(self,manager:Union[Agent,bool]):
-        # planner and moderator
-        if manager == True:
-            self.manager = Agent(name=f"GroupManager-{self.group_id}",
-                                 role="Manager",
-                                 description="The manager of the group",
-                                 persona="The manager is responsible for planning and moderating the group conversation",
-                                 model_client=self.model_client,
-                                 verbose=self._logger.verbose)
-            self._logger.log("info","Create a default manager for the group")
-        elif isinstance(manager,Agent):
-            self.manager = manager
-        else:
-            self.manager = None
 
     @staticmethod
     def _build_agent_handoff_tool_function(agent: Member):
@@ -918,3 +579,50 @@ class Group:
             self._logger.log("info", f"Group workspace directory {group_workspace} exists.")
         
         self.group_workspace = group_workspace
+
+    def _set_env_public(self):
+        self.env_public = Env(
+            description=self.env.description,
+            members=[Member(name=m.name, role=m.role, description=m.description) for m in self.env.members],
+            relationships=self.env.relationships,
+            language=self.env.language
+        )
+
+    def _build_current_agent_handoff_tools(self, include_current_agent:bool = False):
+        handoff_tools = [self._build_agent_handoff_tool_function(self.members_map[self.current_agent])] if include_current_agent else []
+        handoff_tools.extend(self._build_agent_handoff_tool_function(self.members_map[agent]) for agent in self.env.relationships[self.current_agent])
+        return handoff_tools
+
+    def _build_next_choice_response_format_map(self,include_current:bool = False):
+        """
+        
+        """
+        response_format_map = {}
+        if include_current:
+            for k,v in self.env.relationships.items():
+                agent_name_list = ",".join([f'"{i}"' for i in v+[k]])
+                class_str = (
+                    f"class SelectFor{k}IncludeCurrent(BaseModel):\n"
+                    f"    agent_name:Literal[{agent_name_list}]\n"
+                )
+                exec(class_str)
+                response_format_map.update({k:eval(f"SelectFor{k}IncludeCurrent")})
+        else:
+            for k,v in self.env.relationships.items():
+                if len(v) == 0:
+                    continue
+                agent_name_list = ",".join([f'"{i}"' for i in v])
+                class_str = (
+                    f"class SelectFor{k}ExcludeCurrent(BaseModel):\n"
+                    f"    agent_name:Literal[{agent_name_list}]\n"
+                )
+                exec(class_str)
+                response_format_map.update({k:eval(f"SelectFor{k}ExcludeCurrent")})
+        return response_format_map
+    
+    def _update_response_format_maps(self):
+        """
+        Update the next choice response format maps.
+        """
+        self.next_choice_response_format_map: Dict[str, BaseModel] = self._build_next_choice_response_format_map(False)
+        self.next_choice_response_format_map_include_current: Dict[str, BaseModel] = self._build_next_choice_response_format_map(True)

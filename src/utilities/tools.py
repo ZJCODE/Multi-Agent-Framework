@@ -2,6 +2,12 @@ from duckduckgo_search import DDGS
 import requests
 from bs4 import BeautifulSoup
 from tenacity import retry, wait_random_exponential, stop_after_attempt
+from tavily import TavilyClient
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
 
 @retry(wait=wait_random_exponential(multiplier=1, max=10), stop=stop_after_attempt(3))
 def web_search(query:str,timelimit:str,max_results:int):
@@ -14,7 +20,7 @@ def web_search(query:str,timelimit:str,max_results:int):
         max_results (int): The maximum number of results to return usually set to 10.
 
     """
-    results = DDGS().text(keywords=query, safesearch='off', timelimit=timelimit, max_results=max_results)
+    results = DDGS().text(keywords=query, safesearch='moderate', timelimit=timelimit, max_results=max_results)
 
     DETAIL_N = 1
 
@@ -27,18 +33,17 @@ def web_search(query:str,timelimit:str,max_results:int):
     return results
 
 @retry(wait=wait_random_exponential(multiplier=1, max=10), stop=stop_after_attempt(3))
-def web_content_process(link: str, timeout: int = 10) -> str:
+def web_content_process(link: str) -> str:
     """
     Process the content of the given link by using beautifulsoup.
 
     Args:
         link (str): The link to process.
-        timeout (int): The timeout for the request in seconds.
 
     Returns:
         str: The main content of the link.
     """
-    response = requests.get(link, timeout=timeout)
+    response = requests.get(link, timeout=10)
     soup = BeautifulSoup(response.text, 'html.parser')
 
     # Attempt to find the main content using common tags
@@ -68,3 +73,9 @@ def save_to_markdown(workspace:str,filename:str,text:str):
 
     with open(f"{workspace}/{filename}.md", "w") as f:
         f.write(text)
+
+def tavily_search(query:str,days:int,max_results:int):
+    tavily_client = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
+    # context = tavily_client.get_search_context(query=query,max_results=max_results,days=days)
+    context = tavily_client.search(query=query,max_results=max_results,days=days,include_raw_content=False)
+    return context
