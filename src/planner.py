@@ -233,9 +233,10 @@ class GroupPlanner:
             f"### Decision Point\n"
             f"Based on the information above, decide whether to assign extra tasks to current agent before proceeding with the next task in the plan. "
             f"Consider:\n"
-            f"1. Does the current response fully meet the requirements of the current task?\n"
+            f"1. Does the current response fully meet the requirements of the current task? Identify any gaps or incomplete aspects.\n"
             f"2. Are there any unresolved dependencies or prerequisites that must be addressed before moving forward?\n"
-            f"3. Is there a need for further clarification or information before proceeding to the next task?\n"
+            f"3. Is there a need for further clarification or information before proceeding to the next task? Determine if additional details are required.\n"
+            f"Assign extra tasks only when necessary based on the evaluation above.\n"
         )
 
         if self.env.language is not None:
@@ -259,8 +260,10 @@ class GroupPlanner:
         
         extra_task = completion.choices[0].message.parsed.tasks
     
-        tasks_str = "\n\n".join([f"Step {i+1}: {t.agent_name}\n{t.task}\nreceive information from: {t.receive_information_from}\n" for i,t in enumerate(extra_task)])
+        if extra_task:
 
-        self._logger.log("info",f"Extra Task:\n{tasks_str}",color="bold_blue")
+            tasks_str = "\n\n".join([f"Step {i+1}: {t.agent_name}\n{t.task}\nreceive information from: {t.receive_information_from}\n" for i,t in enumerate(extra_task)])
+
+            self._logger.log("info",f"Extra Task:\n{tasks_str}",color="bold_blue")
 
         return extra_task
