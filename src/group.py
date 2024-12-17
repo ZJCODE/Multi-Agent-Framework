@@ -89,6 +89,7 @@ class Group:
         self._update_response_format_maps()
         self.group_messages.env = self.env_public
         if self.planner: self.planner.env = self.env
+        self.update_group_messages(Message(sender="system",action="add_member",result=f"{member.name} joined the group."))
         self._logger.log("info",f"Succesfully add member {member.name}")
 
     def delete_member(self, member_name:str):
@@ -110,7 +111,8 @@ class Group:
         self._update_response_format_maps()
         self.group_messages.env = self.env_public
         if self.planner: self.planner.env = self.env
-
+        self.update_group_messages(Message(sender="system",action="delete_member",result=f"{member_name} left the group"))
+        # todo : member_name summary recent messages in this group and take it with him/her
         if self.current_agent == member_name:
             self.current_agent = random.choice([m.name for m in self.env.members]) if self.env.members else None
             self._logger.log("info",f"current agent {member_name} is deleted, randomly select {self.current_agent} as the new current agent")

@@ -34,6 +34,7 @@ class Env:
         description (str): The description of the environment.
         members (List[Member]): The list of members in the environment.
         relationships (Optional[Union[List[Tuple[str, str]], Dict[str, List[str]]]], optional): The relationships between the members. It can be a list of tuples, a dictionary, or None. Defaults to None.
+        language (Optional[str], optional): The language of the environment. Defaults to None.
 
     Examples:
         Case 1: Relationships as a list of tuples.
