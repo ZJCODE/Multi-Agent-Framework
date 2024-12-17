@@ -49,6 +49,7 @@ class Group:
         self._set_env_public()
         self._update_response_format_maps()
         self.group_messages: GroupMessageProtocol = GroupMessageProtocol(group_id=self.group_id,env=self.env_public)
+        self._logger.log("info",f"Group initialized with ID {self.group_id}")
 
     def set_current_agent(self, agent_name: str):
         """
