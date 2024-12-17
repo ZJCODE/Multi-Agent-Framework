@@ -171,35 +171,3 @@ class Agent(Member):
         tool_schema = function_to_schema(tool)
         self.tools_schema.append(tool_schema)
         self.tools_map[tool.__name__] = tool
-
-
-
-if __name__ == "__main__":
-
-    import os
-    from dotenv import load_dotenv
-    load_dotenv()
-
-    def get_weather(city: str) -> str:
-        return f"The weather in {city} is sunny."
-
-    def get_stock_price(stock: str) -> str:
-        return f"The stock price of {stock} is $100."
-    
-    model_client = OpenAI()
-
-    agent = Agent(name="Alice", role="Manager", 
-                  description="Alice is the manager of the team.",
-                  model_client=model_client,
-                  tools=[get_weather,get_stock_price],
-                  verbose=True)
-    
-    print(agent.do("What is the weather today in hangzhou and the stock price of apple?"))
-
-
-    agent2 = Agent(name="agent1", role="Mathematician", 
-                   description="Transfer to me if you need help with math.", 
-                   dify_access_token=os.environ.get("AGENT1_ACCESS_TOKEN"),
-                   verbose=True)
-    
-    print(agent2.do("What is the integral of x^2?"))
