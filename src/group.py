@@ -183,6 +183,8 @@ class Group:
             strategy:Literal["sequential","hierarchical","auto"] = "auto",
             model:str="gpt-4o-mini",
             model_for_planning:str=None, # can manually set the model for planning for example gpt-4o
+            with_plan_revise:bool=True, # only for auto strategy
+            with_in_transit_revise:bool=True # only for auto strategy
         ) -> List[Message]:
         """
         Execute a task with the given strategy.
@@ -207,7 +209,7 @@ class Group:
         elif strategy == "hierarchical":
             return self._task_hierarchical(task,model)
         elif strategy == "auto":
-            return self._task_auto(task,model,model_for_planning)
+            return self._task_auto(task,model,model_for_planning,with_plan_revise,with_in_transit_revise)
         else:
             raise ValueError("strategy should be one of 'sequential' or 'hierarchical' or 'auto'")
         
@@ -383,7 +385,8 @@ class Group:
         self._logger.log("info","Task finished")
         return response
 
-    def _task_auto(self,task:str,model:str="gpt-4o-mini",model_for_planning:str=None):
+    def _task_auto(self,task:str,model:str="gpt-4o-mini",model_for_planning:str=None,
+                   with_plan_revise:bool=True,with_in_transit_revise:bool=True):
 
         if self.planner is None:
             self.planner = GroupPlanner(env=self.env,model_client=self.model_client,verbose=self.verbose)
@@ -391,7 +394,8 @@ class Group:
 
         self.planner.set_task(task)
         self.planner.planning(model_for_planning if model_for_planning else model)
-        self.planner.revise_plan(model_for_planning if model_for_planning else model)
+        if with_plan_revise:
+            self.planner.revise_plan(model_for_planning if model_for_planning else model)
         tasks = self.planner.plan
 
         step = 0
@@ -400,26 +404,28 @@ class Group:
             step += 1
             self._logger.log("info",f"===> Step {step} for {t.agent_name} \n\ndo task: {t.task} \n\nreceive information from: {t.receive_information_from}")
             self.set_current_agent(t.agent_name)
-            message_send = self._build_auto_task_message(t,cut_off=3,model=model)
+            message_send = self._build_auto_task_message(task,t,cut_off=3,model=model)
             response = self.members_map[t.agent_name].do(message_send,model)
             self.update_group_messages(response)
             for r in response:
                 self._logger.log("info",f"Agent {self.current_agent} response:\n\n{r.result}",color="bold_purple")
 
-            # extra tasks for each step
-            extra_tasks = self.planner.in_transit_revisions(t,response,model_for_planning if model_for_planning else model)
-            for index,et in enumerate(extra_tasks):
-                self._logger.log("info",f"===> Extra Task {index+1} for {et.agent_name} \n\ndo task: {et.task} \n\nreceive information from: {et.receive_information_from}")
-                self.set_current_agent(et.agent_name)
-                message_send = self._build_auto_task_message(et,cut_off=3,model=model)
-                response = self.members_map[et.agent_name].do(message_send,model)
-                self.update_group_messages(response)
-                for r in response:
-                    self._logger.log("info",f"Agent {self.current_agent} response(extra task):\n\n{r.result}",color="bold_purple")
+            if with_in_transit_revise:
+                # extra tasks for each step
+                extra_tasks = self.planner.in_transit_revisions(t,response,model_for_planning if model_for_planning else model)
+                for index,et in enumerate(extra_tasks):
+                    self._logger.log("info",f"===> Extra Task {index+1} for {et.agent_name} \n\ndo task: {et.task} \n\nreceive information from: {et.receive_information_from}")
+                    self.set_current_agent(et.agent_name)
+                    message_send = self._build_auto_task_message(task,et,cut_off=3,model=model)
+                    response = self.members_map[et.agent_name].do(message_send,model)
+                    self.update_group_messages(response)
+                    for r in response:
+                        self._logger.log("info",f"Agent {self.current_agent} response(extra task):\n\n{r.result}",color="bold_purple")
+
         self._logger.log("info","Task finished")
         return response
 
-    def _build_auto_task_message(self,task,cut_off:int=None,model:str="gpt-4o-mini"):
+    def _build_auto_task_message(self,main_task,task,cut_off:int=None,model:str="gpt-4o-mini"):
         if cut_off < 1:
             cut_off = None
         agent_name = task.agent_name
@@ -447,6 +453,8 @@ class Group:
         prompt = (
             f"### Background Information\n"
             f"{self.env.description}\n\n"
+            f"### Main Task\n"
+            f"```\n{main_task}\n```\n\n"
             f"### Members\n"
             f"{members_description}\n\n"
             f"### Your Previous Message\n"

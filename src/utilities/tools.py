@@ -1,7 +1,7 @@
 from duckduckgo_search import DDGS
 import requests
 from bs4 import BeautifulSoup
-from tenacity import retry, wait_random_exponential, stop_after_attempt
+from tenacity import retry, wait_exponential, stop_after_attempt
 from tavily import TavilyClient
 from dotenv import load_dotenv
 import os
@@ -9,7 +9,7 @@ import os
 load_dotenv()
 
 
-@retry(wait=wait_random_exponential(multiplier=1, max=10), stop=stop_after_attempt(3))
+@retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=4, max=10))
 def web_search(query:str,timelimit:str,max_results:int):
     """
     Search the web for the given query with the specified time limit and maximum number of results.
@@ -20,7 +20,11 @@ def web_search(query:str,timelimit:str,max_results:int):
         max_results (int): The maximum number of results to return usually set to 10.
 
     """
-    results = DDGS().text(keywords=query, safesearch='moderate', timelimit=timelimit, max_results=max_results)
+    try:
+        results = DDGS().text(keywords=query, safesearch='moderate', timelimit=timelimit, max_results=max_results)
+    except Exception as e:
+        # print(f"Error during search: {e}")
+        return []
 
     DETAIL_N = 1
 
@@ -28,11 +32,12 @@ def web_search(query:str,timelimit:str,max_results:int):
         try:
             result['content'] = web_content_extract(result['href'], timeout=10)
         except Exception as e:
-            pass
+            # print(f"Error extracting content from {result['href']}: {e}")
+            result['content'] = None
 
     return results
 
-@retry(wait=wait_random_exponential(multiplier=1, max=10), stop=stop_after_attempt(3))
+@retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, min=4, max=10))
 def web_content_extract(link: str) -> str:
     """
     Process the content of the given link by using beautifulsoup.

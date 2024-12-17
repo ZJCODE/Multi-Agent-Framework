@@ -265,5 +265,7 @@ class GroupPlanner:
             tasks_str = "\n\n".join([f"Step {i+1}: {t.agent_name}\n{t.task}\nreceive information from: {t.receive_information_from}\n" for i,t in enumerate(extra_task)])
 
             self._logger.log("info",f"Extra Task:\n{tasks_str}",color="bold_blue")
+        else:
+            self._logger.log("info","No extra task assigned",color="bold_blue")
 
         return extra_task
