@@ -155,7 +155,7 @@ class Group:
             self._logger.log("info",f"Agent {self.current_agent} response:\n\n{r.result}",color="bold_purple")
         return response
 
-    def talk(
+    def chat(
             self, 
             message:str,
             model:str="gpt-4o-mini",
@@ -163,7 +163,7 @@ class Group:
             agent:str = None # can mauanlly set the agent to call
         )-> List[Message]:
         """
-        Talk to the agent.
+        Chat with the agents in the group.
 
         Args:
             message (str): The message to send to the agent.
@@ -172,7 +172,7 @@ class Group:
             agent (str): Specify the agent to call. Defaults to None meaning the agent will be selected based on the next_speaker_select_mode.
         """
         self.user_input(message)
-        response = self.call_agent("auto2",include_current=True,model=model,message_cut_off=message_cut_off,agent=agent)
+        response = self.call_agent(next_speaker_select_mode = "auto2",include_current=True,model=model,message_cut_off=message_cut_off,agent=agent)
         return response
 
     def task(
