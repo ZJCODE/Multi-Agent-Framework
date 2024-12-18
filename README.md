@@ -60,9 +60,9 @@ or like this (third-party agent like Dify)
 mathematician = Agent(name="mathematician",
     role="Mathematician", 
     description="Transfer to me if you need help with math.", 
-    persona = "You are a professional mathematician who has a deep understanding of a wide range of mathematical concepts. You are known for your ability to explain complex ideas in a clear and concise manner. You are always looking for new ways to apply math to solve real-world problems.",
     dify_access_token=os.environ.get("AGENT1_ACCESS_TOKEN"),
     verbose=True)
+# persona is not needed for Dify agent, it already has its own persona
 ```
 
 can add tools like this
