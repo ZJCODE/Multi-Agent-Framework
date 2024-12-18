@@ -88,7 +88,7 @@ artist = Agent(name="researcher",
 
 ### Step Two
 
-Create Env like this
+Create Env like this (all agents are fully connected by default)
 
 ```python
 
@@ -98,7 +98,7 @@ env = Env(
 )
 ```
 
-or like this
+or like this (self-defined topology relationships between agents)
 
 ```python
 env = Env(
@@ -108,7 +108,7 @@ env = Env(
 )
 ```
 
-or with set output language (default is English)
+or set language used in the environment
 
 ```python
 env = Env(
@@ -127,7 +127,7 @@ Build Group like this
 g = Group(env=env,model_client=model_client,verbose=True)
 ```
 
-can add extra agent into group like this
+can add extra agent into group dynamically like this
 
 ```python
 
@@ -140,7 +140,7 @@ designer = Agent(name="designer",
 g.add_member(designer)
 ```
 
-or delete agent from group like this
+or delete agent from group dynamically like this
 
 ```python
 g.delete_member("artist") # delete by name
