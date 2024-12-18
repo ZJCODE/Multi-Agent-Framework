@@ -152,7 +152,7 @@ Some examples of how to use the group
 
 
 ```python
-response= g.chat("Can explain the concept of complex numbers?",model="gpt-4o-mini")
+response= g.chat("Can you explain the concept of complex numbers?",model="gpt-4o-mini")
 response= g.chat("Can you help me with art?",model="gpt-4o-mini")
 ```
 
