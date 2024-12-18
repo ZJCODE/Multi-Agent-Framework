@@ -452,18 +452,16 @@ class Group:
 
         prompt = (
             f"### Background Information\n"
-            f"{self.env.description}\n\n"
-            f"### Main Task\n"
-            f"```\n{main_task}\n```\n\n"
+            f"{self.env.description}\n"
             f"### Members\n"
             f"{members_description}\n\n"
             f"### Your Previous Message\n"
             f"{previous_messages_str}\n\n"
             f"### Received Information\n"
             f"{receive_informations_str}\n\n"
-            f"### Task\n"
+            f"### Current Task\n"
             f"```\n{task_deatil}\n```\n\n"
-            f"Please respond to the task."
+            f"Please complete the current task and return the result."
         )
 
         if self.workspace is not None:

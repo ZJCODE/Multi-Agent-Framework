@@ -66,7 +66,6 @@ class GroupPlanner:
         members_description = "\n".join([f"- {m.name} ({m.role})" + (f" [tools available: {', '.join([x.__name__ for x in m.tools])}]" if m.tools else "") for m in self.env.members])
 
 
-
         prompt = (
             f"### Contextual Information\n"
             f"{self.env.description}\n\n"
@@ -79,6 +78,7 @@ class GroupPlanner:
             f"### Strategy\n"
             f"First, evaluate team members' skills and availability to form a balanced group, ensuring a mix of competencies and expertise."
             f"Then, break the main task into prioritized sub-tasks and assign them based on expertise"
+            f"Make sure that key information is included in sub-tasks for smooth task completion."
         )
 
         if self.env.language is not None:
@@ -203,11 +203,13 @@ class GroupPlanner:
 
         member_list = f'"{current_task.agent_name}"' # for pydantic Literal
 
+        all_member_list = ",".join([f'"{m.name}"' for m in self.env.members]) # for pydantic Literal
+
         class_str = (
             f"class Task(BaseModel):\n"
             f"    agent_name:Literal[{member_list}]\n"
             f"    task:str\n"
-            f"    receive_information_from:List[Literal[{member_list}]]\n"
+            f"    receive_information_from:List[Literal[{all_member_list}]]\n"
             f""
             f"class Tasks(BaseModel):\n"
             f"    tasks:List[Task]\n"
