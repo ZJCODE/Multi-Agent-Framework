@@ -22,7 +22,7 @@ OPENAI_BASE_URL=xxx
 
 - [How to build Group of Agents](examples/001%20group.ipynb)
 - [Chat with Group of Agents](examples/002%20chat.ipynb)
-- [Task for Group of Agents](examples/002%20task.ipynb)
+- [Task for Group of Agents](examples/003%20task.ipynb)
 - [Low Level API for Group Discussion with Human in the Loop](examples/999%20low-level.ipynb)
 
 
@@ -43,7 +43,7 @@ import os
 Creat Agent like this 
 
 ```python
-artist = Agent(name="agent2", 
+artist = Agent(name="artist",
         role="Artist", 
         description="Transfer to me if you need help with art.",
         model_client=OpenAI(),
@@ -53,7 +53,7 @@ artist = Agent(name="agent2",
 or like this (third-party agent like Dify)
 
 ```python
-mathematician = Agent(name="agent1", 
+mathematician = Agent(name="mathematician",
     role="Mathematician", 
     description="Transfer to me if you need help with math.", 
     dify_access_token=os.environ.get("AGENT1_ACCESS_TOKEN"),
@@ -102,10 +102,40 @@ Build Group like this
 g = Group(env=env,model_client=model_client,verbose=True)
 ```
 
+can add extra agent into group like this
+
+```python
+
+designer = Agent(name="designer",
+    role="Designer", 
+    description="Transfer to me if you need help with design.", 
+    model_client=OpenAI(),
+    verbose=True)
+
+g.add_member(designer)
+```
+
+or delete agent from group like this
+
+```python
+g.delete_member("artist") # delete by name
+```
 
 ### Step Four
 
 Some examples of how to use the group
+
+
+```python
+response= g.chat("Can explain the concept of complex numbers?",model="gpt-4o-mini")
+response= g.chat("Can you help me with art?",model="gpt-4o-mini")
+```
+
+```python
+response = g.task("I want to build a simplistic and user-friendly bicycle help write a design brief.",model="gpt-4o-mini",strategy="auto")
+```
+
+low-level API example
 
 ```python
 g.user_input("can you help me with math?")
@@ -113,16 +143,12 @@ next_agent = g.handoff(next_speaker_select_mode="auto2",include_current=True,mod
 ```
 
 ```python
-g.user_input("How about music for reading?")
+g.user_input("Discuss the concept of abstract art.")
+response = g.call_agent(next_speaker_select_mode="auto2",include_current=True,model="gpt-4o-mini")
+response = g.call_agent(next_speaker_select_mode="auto2",include_current=True,model="gpt-4o-mini")
+g.user_input("how do you feel about abstract art?")
+response = g.call_agent(next_speaker_select_mode="auto2",include_current=True,model="gpt-4o-mini")
+response = g.call_agent(next_speaker_select_mode="auto2",include_current=True,model="gpt-4o-mini")
 response = g.call_agent(next_speaker_select_mode="auto2",include_current=True,model="gpt-4o-mini")
 ```
-
-```python
-response= g.chat("Can explain the concept of complex numbers?")
-```
-
-```python
-response = g.task("I want to build a simplistic and user-friendly bicycle help write a design brief.",model="gpt-4o-mini",strategy="auto")
-```
-
 
