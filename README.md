@@ -46,6 +46,7 @@ Creat Agent like this
 artist = Agent(name="artist",
         role="Artist", 
         description="Transfer to me if you need help with art.",
+        persona = "You are a professional artist who has been working in the industry for over 10 years. You have a deep understanding of art history and have a strong passion for creating art. You are known for your unique style and innovative approach to art. You are always looking for new ways to express yourself and push the boundaries of what is possible in the art world.",
         model_client=OpenAI(),
         verbose=True)
 ```
@@ -56,8 +57,29 @@ or like this (third-party agent like Dify)
 mathematician = Agent(name="mathematician",
     role="Mathematician", 
     description="Transfer to me if you need help with math.", 
+    persona = "You are a professional mathematician who has a deep understanding of a wide range of mathematical concepts. You are known for your ability to explain complex ideas in a clear and concise manner. You are always looking for new ways to apply math to solve real-world problems.",
     dify_access_token=os.environ.get("AGENT1_ACCESS_TOKEN"),
     verbose=True)
+```
+
+can add tools like this
+
+```python
+
+def web_search(qury:str)->str:
+    """
+    web search tool
+    """
+    # do web search
+    return "web search result"
+
+artist = Agent(name="researcher",
+        role="Researcher",
+        description="Transfer to me if you need help with research.",
+        persona = "You are a professional researcher who can do web search to conduct research on a wide range of topics. You have a deep understanding of how to find and evaluate information from a variety of sources. You are known for your ability to quickly find relevant information and present it in a clear and concise manner.",
+        tools=[web_search],
+        model_client=OpenAI(),
+        verbose=True)
 ```
 
 
