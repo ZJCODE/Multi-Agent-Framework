@@ -130,12 +130,12 @@ class Group:
             "## role_description\n"
             f"{role_description}\n"
             "## Task\n"
-            "Basd on the role description, design an agent for the group.\n"
+            "Basd on the role description, design a new role for the group.\n"
             "Please provide the following information:\n"
-            "- Name (if not provided, leave it empty else can only contain letters, digits, and underscores)\n"
+            "- Name (unique name for the role)\n"
             "- Role (required)\n"
-            "- Description (write what kind of situation we can use this agent)\n"
-            "- Persona (write the persona of this agent)\n"
+            "- Description (write what kind of situation we can get help from this role)\n"
+            "- Persona (write the persona for this role)\n"
         )
 
         if self.env.language is not None:
