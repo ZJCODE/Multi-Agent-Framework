@@ -10,6 +10,7 @@ from utilities.logger import Logger
 
 from protocol import Member, Env, Message, GroupMessageProtocol
 from planner import GroupPlanner
+from agent import Agent
 import os
 import datetime
 
@@ -67,6 +68,54 @@ class Group:
 
         self.current_agent = agent_name
         self._logger.log("info", f"Manually set the current agent to {agent_name}")
+
+    def invite_member(self, role_description, model="gpt-4o-mini"):
+        
+        class AgentSchema(BaseModel):
+            name:Optional[str]
+            role:str
+            description:str
+            persona:str
+
+        prompt = (
+            "## role_description\n"
+            f"{role_description}\n"
+            "## Task\n"
+            "Basd on the role description, design an agent for the group.\n"
+            "Please provide the following information:\n"
+            "- Name (if not provided, leave it empty else can only contain letters, digits, and underscores)\n"
+            "- Role (required)\n"
+            "- Description (write what kind of situation we can use this agent)\n"
+            "- Persona (write the persona of this agent)\n"
+        )
+
+        if self.env.language is not None:
+            prompt += f"\n\n### Response in Language: {self.env.language}\n"
+
+        messages = [{"role":"system","content":"You are good at designing agents. Design an agent for the group."}]
+        messages.append({"role":"user","content":prompt})
+        
+        completion = self.model_client.beta.chat.completions.parse(
+            model=model,
+            messages=messages,
+            temperature=0.0,
+            response_format=AgentSchema,
+        )
+        agent_desc = completion.choices[0].message.parsed
+
+        name = agent_desc.name if agent_desc.name else f"agent_{len(self.env.members)+1}"
+
+        invite_agent = Agent(name=name,
+                             role=agent_desc.role,
+                             description=agent_desc.description,
+                             persona=agent_desc.persona,
+                             model_client=self.model_client,
+                             verbose=self.verbose)
+        
+        relation = [(name, m.name) for m in self.env.members]
+        relation.extend([(m.name, name) for m in self.env.members])
+
+        self.add_member(invite_agent,relation)
 
 
     def add_member(self, member: Member,relation:Optional[Tuple[str,str]] = None):
