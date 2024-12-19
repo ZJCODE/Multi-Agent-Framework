@@ -69,6 +69,55 @@ class Group:
         self.current_agent = agent_name
         self._logger.log("info", f"Manually set the current agent to {agent_name}")
 
+    def add_member(self, member: Member,relation:Optional[Tuple[str,str]] = None):
+        """
+        Add a new member to the group.
+
+        Args:
+            member (Member): The member to add to the group.
+            relation (Optional[Tuple[str, str]]): The relationship tuple. Defaults to None.
+        """
+        if member.name in self.members_map:
+            self._logger.log("warning",f"Member with name {member.name} already exists",color="red")
+            return
+        self.env.members.append(member)
+        self.members_map[member.name] = member
+        self.member_iterator = itertools.cycle(self.env.members)
+        self._rectify_relationships()
+        self._add_relationship(member,relation)
+        self._set_env_public()
+        self._update_response_format_maps()
+        self.group_messages.env = self.env_public
+        if self.planner: self.planner.env = self.env
+        self.update_group_messages(Message(sender="system",action="add_member",result=f"{member.name} joined the group."))
+        self._logger.log("info",f"Succesfully add member {member.name}")
+
+    def delete_member(self, member_name:str):
+        """
+        Delete a member from the group.
+
+        Args:
+            member_name (str): The name of the member to delete.
+        """
+        if member_name not in self.members_map:
+            self._logger.log("warning",f"Member with name {member_name} does not exist",color="red")
+            return
+        self.env.members = [m for m in self.env.members if m.name != member_name]
+        self.members_map.pop(member_name)
+        self.member_iterator = itertools.cycle(self.env.members)
+        self._rectify_relationships()
+        self._remove_relationships(member_name)
+        self._set_env_public()
+        self._update_response_format_maps()
+        self.group_messages.env = self.env_public
+        if self.planner: self.planner.env = self.env
+        self.update_group_messages(Message(sender="system",action="delete_member",result=f"{member_name} left the group"))
+        # todo : member_name summary recent messages in this group and take it with him/her
+        if self.current_agent == member_name:
+            self.current_agent = random.choice([m.name for m in self.env.members]) if self.env.members else None
+            self._logger.log("info",f"current agent {member_name} is deleted, randomly select {self.current_agent} as the new current agent")
+        self._logger.log("info",f"Successfully delete member {member_name}")
+
     def invite_member(self, role_description, model="gpt-4o-mini"):
         
         class AgentSchema(BaseModel):
@@ -118,54 +167,6 @@ class Group:
         self.add_member(invite_agent,relation)
 
 
-    def add_member(self, member: Member,relation:Optional[Tuple[str,str]] = None):
-        """
-        Add a new member to the group.
-
-        Args:
-            member (Member): The member to add to the group.
-            relation (Optional[Tuple[str, str]]): The relationship tuple. Defaults to None.
-        """
-        if member.name in self.members_map:
-            self._logger.log("warning",f"Member with name {member.name} already exists",color="red")
-            return
-        self.env.members.append(member)
-        self.members_map[member.name] = member
-        self.member_iterator = itertools.cycle(self.env.members)
-        self._rectify_relationships()
-        self._add_relationship(member,relation)
-        self._set_env_public()
-        self._update_response_format_maps()
-        self.group_messages.env = self.env_public
-        if self.planner: self.planner.env = self.env
-        self.update_group_messages(Message(sender="system",action="add_member",result=f"{member.name} joined the group."))
-        self._logger.log("info",f"Succesfully add member {member.name}")
-
-    def delete_member(self, member_name:str):
-        """
-        Delete a member from the group.
-
-        Args:
-            member_name (str): The name of the member to delete.
-        """
-        if member_name not in self.members_map:
-            self._logger.log("warning",f"Member with name {member_name} does not exist",color="red")
-            return
-        self.env.members = [m for m in self.env.members if m.name != member_name]
-        self.members_map.pop(member_name)
-        self.member_iterator = itertools.cycle(self.env.members)
-        self._rectify_relationships()
-        self._remove_relationships(member_name)
-        self._set_env_public()
-        self._update_response_format_maps()
-        self.group_messages.env = self.env_public
-        if self.planner: self.planner.env = self.env
-        self.update_group_messages(Message(sender="system",action="delete_member",result=f"{member_name} left the group"))
-        # todo : member_name summary recent messages in this group and take it with him/her
-        if self.current_agent == member_name:
-            self.current_agent = random.choice([m.name for m in self.env.members]) if self.env.members else None
-            self._logger.log("info",f"current agent {member_name} is deleted, randomly select {self.current_agent} as the new current agent")
-        self._logger.log("info",f"Successfully delete member {member_name}")
 
     def user_input(self, message:str,action:str="talk",alias = None):
         """
