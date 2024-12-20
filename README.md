@@ -146,6 +146,13 @@ or delete agent from group dynamically like this
 g.delete_member("artist") # delete by name
 ```
 
+or inviate agent to join group dynamically like this
+
+```python
+# automatically create agent
+g.invite_member("a philosopher who calls himself agent4 , he is a big fan of plato and aristotle")
+```
+
 ### Step Four
 
 Some examples of how to use the group
