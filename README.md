@@ -146,7 +146,7 @@ or delete agent from group dynamically like this
 g.delete_member("artist") # delete by name
 ```
 
-or inviate agent to join group dynamically like this
+or invite agent to join group dynamically like this
 
 ```python
 # automatically create agent
