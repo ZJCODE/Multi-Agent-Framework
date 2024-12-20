@@ -48,7 +48,6 @@ class Group:
         self.member_iterator = itertools.cycle(self.env.members)
         self._rectify_relationships()
         self._set_env_public()
-        self._update_response_format_maps()
         self.group_messages: GroupMessageProtocol = GroupMessageProtocol(group_id=self.group_id,env=self.env_public)
         self._logger.log("info",f"Group initialized with ID {self.group_id}")
 
@@ -86,7 +85,6 @@ class Group:
         self._rectify_relationships()
         self._add_relationship(member,relation)
         self._set_env_public()
-        self._update_response_format_maps()
         self.group_messages.env = self.env_public
         if self.planner: self.planner.env = self.env
         self.update_group_messages(Message(sender="system",action="add_member",result=f"{member.name} joined the group."))
@@ -108,7 +106,6 @@ class Group:
         self._rectify_relationships()
         self._remove_relationships(member_name)
         self._set_env_public()
-        self._update_response_format_maps()
         self.group_messages.env = self.env_public
         if self.planner: self.planner.env = self.env
         self.update_group_messages(Message(sender="system",action="delete_member",result=f"{member_name} left the group"))
@@ -127,15 +124,14 @@ class Group:
             persona:str
 
         prompt = (
-            "## role_description\n"
-            f"{role_description}\n"
+            "## Role Description\n"
+            f"{role_description}\n\n"
             "## Task\n"
-            "Basd on the role description, design a new role for the group.\n"
-            "Please provide the following information:\n"
-            "- Name (unique name for the role)\n"
-            "- Role (required)\n"
-            "- Description (write what kind of situation we can get help from this role)\n"
-            "- Persona (write the persona for this role)\n"
+            "Based on the provided role description, try to extract the following information:\n"
+            "1. **Name**: if provided use it, otherwise create a new name for the role.(only use letters, numbers, and underscores)\n"
+            "2. **Role**: Role like 'Designer', 'Engineer', 'Manager', etc.\n"
+            "3. **Description**: Explain the scenarios or situations where this role would be most helpful.\n"
+            "4. **Persona**: Describe the ideal persona for this role, including personality traits, skills, and any other relevant characteristics.\n\n"
         )
 
         if self.env.language is not None:
@@ -180,7 +176,7 @@ class Group:
 
     def call_agent(
             self,
-            next_speaker_select_mode:Literal["order","auto","auto2","random"]="auto2",
+            next_speaker_select_mode:Literal["order","auto","random"]="auto",
             include_current:bool = True,
             model:str="gpt-4o-mini",
             message_cut_off:int=5,
@@ -190,7 +186,7 @@ class Group:
         Call the agent to respond to the group messages.
 
         Args:
-            next_speaker_select_mode (Literal["order","auto","auto2","random"]): The mode to select the next speaker. Defaults to "auto2".
+            next_speaker_select_mode (Literal["order","auto","random"]): The mode to select the next speaker. Defaults to "auto".
             include_current (bool): Whether to include the current agent in the handoff. Defaults to True.
             model (str): The model to use for the handoff. Defaults to "gpt-4o-mini".
             message_cut_off (int): The number of previous messages to consider. Defaults to 3.
@@ -224,7 +220,7 @@ class Group:
             agent (str): Specify the agent to call. Defaults to None meaning the agent will be selected based on the next_speaker_select_mode.
         """
         self.user_input(message)
-        response = self.call_agent(next_speaker_select_mode = "auto2",include_current=True,model=model,message_cut_off=message_cut_off,agent=agent)
+        response = self.call_agent(next_speaker_select_mode = "auto",include_current=True,model=model,message_cut_off=message_cut_off,agent=agent)
         return response
 
     def task(
@@ -268,7 +264,7 @@ class Group:
     def handoff(
             self,
             handoff_max_turns:int=3,
-            next_speaker_select_mode:Literal["order","auto","auto2","random"]="auto2",
+            next_speaker_select_mode:Literal["order","auto","random"]="auto",
             model:str="gpt-4o-mini",
             include_current:bool = True
     )->str:
@@ -277,7 +273,7 @@ class Group:
 
         Args:
             handoff_max_turns (int): The maximum number of turns to handoff. Defaults to 3.
-            next_speaker_select_mode (Literal["order","auto","auto2","random"]): The mode to select the next speaker. Defaults to "auto2".
+            next_speaker_select_mode (Literal["order","auto","random"]): The mode to select the next speaker. Defaults to "auto".
             model (str): The model to use for the handoff. Defaults to "gpt-4o-mini".
             include_current (bool): Whether to include the current agent in the handoff. Defaults to True.
         """
@@ -300,7 +296,7 @@ class Group:
 
     def handoff_one_turn(
             self,
-            next_speaker_select_mode: Literal["order", "auto", "auto2", "random"] = "auto",
+            next_speaker_select_mode: Literal["order", "auto", "random"] = "auto",
             model: str = "gpt-4o-mini",
             include_current: bool = True
     ) -> str:
@@ -308,13 +304,12 @@ class Group:
             return next(self.member_iterator).name
         elif next_speaker_select_mode == "random":
             return random.choice([m.name for m in self.env.members])
-        elif next_speaker_select_mode in ("auto", "auto2"):
+        elif next_speaker_select_mode == "auto":
             if not self.env.relationships[self.current_agent]:
                 return self.current_agent
-            return self._select_next_agent_auto(model, include_current, 
-                                                use_tool = next_speaker_select_mode == "auto")
+            return self._select_next_agent_auto(model, include_current)
         else:
-            raise ValueError("next_speaker_select_mode should be one of 'order', 'auto', 'auto2', 'random'")
+            raise ValueError("next_speaker_select_mode should be one of 'order', 'auto', 'random'")
 
     def update_group_messages(self, message:Union[Message,List[Message]]):
         if isinstance(message,Message):
@@ -395,34 +390,30 @@ class Group:
                 if member_name in v:
                     v.remove(member_name)
 
-    def _select_next_agent_auto(self, model: str, include_current: bool, use_tool: bool) -> str:
+    def _select_next_agent_auto(self, model: str, include_current: bool) -> str:
+
+        pre_messages = "\n\n".join([f"```{m.sender}\n {m.result}\n```" for m in self.group_messages.context[-1:]])
+
+        handoff_message = (
+            f"### Background Information\n"
+            f"{self.env.description}\n\n"
+            f"### Messages\n"
+            f"{pre_messages}\n\n"
+        )
 
         messages = [{"role": "system", "content": "Decide who should be the next person to talk. Transfer the conversation to the next person."}]
-        handoff_message = self._build_handoff_message(cut_off=1, use_tool=use_tool) # notice the cut_off setting
         messages.extend([{"role": "user", "content": handoff_message}])
 
-        # if use_tool is True, the agent will be selected based on the tool call [auto]
-        if use_tool:
-            handoff_tools = self._build_current_agent_handoff_tools(include_current)
-            response = self.model_client.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=0.0,
-                tools=handoff_tools,
-                tool_choice="required"
-            )
-            return response.choices[0].message.tool_calls[0].function.name
-        # if use_tool is False, the agent will be selected based on the response format [auto2]
-        else:
-            response_format = self.next_choice_response_format_map_include_current[self.current_agent] if include_current else self.next_choice_response_format_map[self.current_agent]
-            completion = self.model_client.beta.chat.completions.parse(
-                model=model,
-                messages=messages,
-                temperature=0.0,
-                response_format=response_format,
-                max_tokens=10
-            )
-            return completion.choices[0].message.parsed.agent_name
+        handoff_tools = self._build_current_agent_handoff_tools(include_current)
+
+        response = self.model_client.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=0.0,
+            tools=handoff_tools,
+            tool_choice="required"
+        )
+        return response.choices[0].message.tool_calls[0].function.name
 
     def _task_sequential(self,task:str,model:str="gpt-4o-mini"):
         self.user_input(task,action="task")
@@ -535,42 +526,6 @@ class Group:
             }
         }
 
-    
-    def _build_handoff_message(self,cut_off:int=1,use_tool:bool=False):
-        """
-        This function builds a prompt for llm to decide who should be the next person been handoff to.
-
-        Args:
-            cut_off (int): The number of previous messages to consider.
-
-        Returns:
-            str: The prompt for the agent to decide who should be the next person been handoff to.
-        """
-
-        messages = "\n\n".join([f"```{m.sender}\n {m.result}\n```" for m in self.group_messages.context[-cut_off:]])
-
-        if use_tool:
-            prompt = (
-                f"### Background Information\n"
-                f"{self.env.description}\n\n"
-                f"### Messages\n"
-                f"{messages}\n\n"
-            )
-        else:
-            members_description = "\n".join([f"- {m.name} ({m.role})" + (f" [tools available: {', '.join([x.__name__ for x in m.tools])}]" if m.tools else "") for m in [self.members_map[agent] for agent in self.env.relationships[self.current_agent]]])
-            prompt = (
-                    f"### Background Information\n"
-                    f"{self.env.description}\n\n"
-                    f"### Members\n"
-                    f"{members_description}\n\n"
-                    f"### Messages\n"
-                    f"{messages}\n\n"
-                    f"### Task\n"
-                    f"Consider the Background Information and the previous messages. "
-                    f"Decide who should be the next person to send a message. Choose from the members."
-                )
-            
-        return prompt     
 
     def _build_send_message(self,cut_off:int=None,send_to:str=None) -> str:
         """ 
@@ -661,37 +616,3 @@ class Group:
         handoff_tools = [self._build_agent_handoff_tool_function(self.members_map[self.current_agent])] if include_current_agent else []
         handoff_tools.extend(self._build_agent_handoff_tool_function(self.members_map[agent]) for agent in self.env.relationships[self.current_agent])
         return handoff_tools
-
-    def _build_next_choice_response_format_map(self,include_current:bool = False):
-        """
-        
-        """
-        response_format_map = {}
-        if include_current:
-            for k,v in self.env.relationships.items():
-                agent_name_list = ",".join([f'"{i}"' for i in v+[k]])
-                class_str = (
-                    f"class SelectFor{k}IncludeCurrent(BaseModel):\n"
-                    f"    agent_name:Literal[{agent_name_list}]\n"
-                )
-                exec(class_str)
-                response_format_map.update({k:eval(f"SelectFor{k}IncludeCurrent")})
-        else:
-            for k,v in self.env.relationships.items():
-                if len(v) == 0:
-                    continue
-                agent_name_list = ",".join([f'"{i}"' for i in v])
-                class_str = (
-                    f"class SelectFor{k}ExcludeCurrent(BaseModel):\n"
-                    f"    agent_name:Literal[{agent_name_list}]\n"
-                )
-                exec(class_str)
-                response_format_map.update({k:eval(f"SelectFor{k}ExcludeCurrent")})
-        return response_format_map
-    
-    def _update_response_format_maps(self):
-        """
-        Update the next choice response format maps.
-        """
-        self.next_choice_response_format_map: Dict[str, BaseModel] = self._build_next_choice_response_format_map(False)
-        self.next_choice_response_format_map_include_current: Dict[str, BaseModel] = self._build_next_choice_response_format_map(True)
