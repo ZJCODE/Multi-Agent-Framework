@@ -171,16 +171,16 @@ low-level API example
 
 ```python
 g.user_input("can you help me with math?")
-next_agent = g.handoff(next_speaker_select_mode="auto2",include_current=True,model="gpt-4o-mini")
+next_agent = g.handoff(next_speaker_select_mode="auto",include_current=True,model="gpt-4o-mini")
 ```
 
 ```python
 g.user_input("Discuss the concept of abstract art.")
-response = g.call_agent(next_speaker_select_mode="auto2",include_current=True,model="gpt-4o-mini")
-response = g.call_agent(next_speaker_select_mode="auto2",include_current=True,model="gpt-4o-mini")
+response = g.call_agent(next_speaker_select_mode="auto",include_current=True,model="gpt-4o-mini")
+response = g.call_agent(next_speaker_select_mode="auto",include_current=True,model="gpt-4o-mini")
 g.user_input("how do you feel about abstract art?")
-response = g.call_agent(next_speaker_select_mode="auto2",include_current=True,model="gpt-4o-mini")
-response = g.call_agent(next_speaker_select_mode="auto2",include_current=True,model="gpt-4o-mini")
-response = g.call_agent(next_speaker_select_mode="auto2",include_current=True,model="gpt-4o-mini")
+response = g.call_agent(next_speaker_select_mode="auto",include_current=True,model="gpt-4o-mini")
+response = g.call_agent(next_speaker_select_mode="auto",include_current=True,model="gpt-4o-mini")
+response = g.call_agent(next_speaker_select_mode="auto",include_current=True,model="gpt-4o-mini")
 ```
 
