@@ -116,6 +116,13 @@ class Group:
         self._logger.log("info",f"Successfully delete member {member_name}")
 
     def invite_member(self, role_description, model="gpt-4o-mini"):
+        """
+        Invite a new member to the group. You Just need to provide the role description we will generate the agent for you.
+
+        Args:
+            role_description (str): The description of the role of the new member.
+            model (str): The model to use for the invitation. Defaults to "gpt-4o-mini".
+        """
         
         class AgentSchema(BaseModel):
             name:Optional[str]
