@@ -4,7 +4,17 @@
 
 The Multi-Agent Framework can communicate, execute tasks, and manage low-level control.
 
-## Pre-requirements
+## Tutorial
+
+- [How to build Group of Agents](examples/001%20group.ipynb)
+- [Chat with Group of Agents](examples/002%20chat.ipynb)
+- [Task for Group of Agents](examples/003%20task.ipynb)
+- [Low Level API for Group Discussion with Human in the Loop](examples/999%20low-level.ipynb)
+
+
+## Usage
+
+### Pre-requirements
 
 ```bash
 pip install -r requirements.txt
@@ -17,16 +27,6 @@ write your own KEY and URL(optional)
 OPENAI_API_KEY=xxx
 OPENAI_BASE_URL=xxx
 ```
-
-## Tutorial
-
-- [How to build Group of Agents](examples/001%20group.ipynb)
-- [Chat with Group of Agents](examples/002%20chat.ipynb)
-- [Task for Group of Agents](examples/003%20task.ipynb)
-- [Low Level API for Group Discussion with Human in the Loop](examples/999%20low-level.ipynb)
-
-
-## Usage
 
 ### Step Zero
 
