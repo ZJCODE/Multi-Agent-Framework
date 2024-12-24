@@ -31,14 +31,12 @@ OPENAI_BASE_URL=xxx
 ### Step Zero
 
 ```python
-from protocol import Env,Message
-from group import Group
-from agent import Agent
+from dotenv import load_dotenv
 from openai import OpenAI
-import os
+from src import Env,Agent,Group
 
+load_dotenv()
 model_client = OpenAI()
-
 ```
 
 ### Step One
