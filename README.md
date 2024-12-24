@@ -2,7 +2,9 @@
 
 ## Introduction
 
-The Multi-Agent Framework allows different agents to talk to each other, perform tasks, and handle basic control with a human in the loop.
+Multi-Agent Framework build from scratch, based on OpenAI API, to enable multiple agents to talk to each other, perform tasks, and handle basic control with a human in the loop.
+
+You can also add third-party agents like Dify to the group, and the framework will automatically handle the handoff between agents.
 
 It is built to be flexible and user-friendly, enabling users to create and manage groups of agents with various roles and skills. This framework can be applied in many areas, such as customer support, research, and education.
 
