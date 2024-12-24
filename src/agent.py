@@ -1,10 +1,10 @@
-from protocol import Member,Message
 from typing import List,Union,Dict
 from openai import OpenAI,AsyncOpenAI
 import requests
 import json
-from utilities.logger import Logger
-from utilities.utils import function_to_schema
+from .utilities.logger import Logger
+from .utilities.utils import function_to_schema
+from .protocol import Member,Message
 
 class Agent(Member):
     def __init__(

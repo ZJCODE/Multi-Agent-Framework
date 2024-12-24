@@ -6,13 +6,13 @@ import itertools
 from pydantic import BaseModel
 from tenacity import retry, wait_random_exponential, stop_after_attempt
 from typing import Dict, Optional, Literal, Tuple,List,Union
-from utilities.logger import Logger
-
-from protocol import Member, Env, Message, GroupMessageProtocol
-from planner import GroupPlanner
-from agent import Agent
 import os
 import datetime
+
+from .utilities.logger import Logger
+from .protocol import Member, Env, Message, GroupMessageProtocol
+from .planner import GroupPlanner
+from .agent import Agent
 
 class Group:
     def __init__(
