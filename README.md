@@ -6,6 +6,12 @@ The Multi-Agent Framework allows different agents to talk to each other, perform
 
 It is built to be flexible and user-friendly, enabling users to create and manage groups of agents with various roles and skills. This framework can be applied in many areas, such as customer support, research, and education.
 
+## Simple Demo
+
+![demo](./resources/demo.png)
+
+Try it: [Simple demo for multi-agent](https://agentstalk.streamlit.app/)
+
 ## Tutorial
 
 - [How to build Group of Agents](examples/001%20group.ipynb)
