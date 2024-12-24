@@ -77,7 +77,7 @@ class GroupPlanner:
             f"### Strategy\n"
             f"First, evaluate team members' skills and availability to form a balanced group, ensuring a mix of competencies and expertise."
             f"Then, break the main task into prioritized sub-tasks and assign them based on expertise"
-            f"Make sure that key information is included in sub-tasks for smooth task completion."
+            f"Ensure that essential details such as time, location, and individuals involved are incorporated into sub-tasks for improved clarity."
         )
 
         if self.env.language is not None:
