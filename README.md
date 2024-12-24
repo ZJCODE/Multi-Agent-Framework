@@ -2,7 +2,9 @@
 
 ## Introduction
 
-The Multi-Agent Framework can communicate, execute tasks, and manage low-level control like human in the loop discussion with multiple agents.The framework is designed to be flexible and easy to use, allowing users to create and manage groups of agents with different roles and capabilities. The framework can be used for a wide range of applications, including customer support, research, and education.
+The Multi-Agent Framework allows different agents to talk to each other, perform tasks, and handle basic control with a human in the loop.
+
+It is built to be flexible and user-friendly, enabling users to create and manage groups of agents with various roles and skills. This framework can be applied in many areas, such as customer support, research, and education.
 
 ## Tutorial
 
