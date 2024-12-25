@@ -82,7 +82,7 @@ artist = Agent(name="researcher",
         verbose=True)
 ```
 
-or create third-party agent service at Dify like this
+or connect a third-party agent that was created at Dify like this.
 
 ```python
 mathematician = Agent(name="mathematician",
@@ -93,7 +93,7 @@ mathematician = Agent(name="mathematician",
 # persona is not needed for Dify agent, it already has its own persona
 ```
 
-or create websoket agent like this (can DIY your own agent service)
+or connect a websocket agent like this.
 
 ```python
 agent = Agent(name="assistant", 
