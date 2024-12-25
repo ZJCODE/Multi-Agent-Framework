@@ -62,17 +62,6 @@ artist = Agent(name="artist",
         verbose=True)
 ```
 
-or like this (third-party agent like Dify)
-
-```python
-mathematician = Agent(name="mathematician",
-    role="Mathematician", 
-    description="Transfer to me if you need help with math.", 
-    dify_access_token=os.environ.get("AGENT1_ACCESS_TOKEN"),
-    verbose=True)
-# persona is not needed for Dify agent, it already has its own persona
-```
-
 can add tools like this
 
 ```python
@@ -91,6 +80,27 @@ artist = Agent(name="researcher",
         tools=[web_search],
         model_client=model_client,
         verbose=True)
+```
+
+or create third-party agent service at Dify like this
+
+```python
+mathematician = Agent(name="mathematician",
+    role="Mathematician", 
+    description="Transfer to me if you need help with math.", 
+    dify_access_token=os.environ.get("AGENT1_ACCESS_TOKEN"),
+    verbose=True)
+# persona is not needed for Dify agent, it already has its own persona
+```
+
+or create websoket agent like this (can DIY your own agent service)
+
+```python
+agent = Agent(name="assistant", 
+              role="Assistant",
+              description="Transfer to me if you need help",
+              websocket_url="ws://localhost:5358/ws_agent_demo",
+              verbose=True)
 ```
 
 

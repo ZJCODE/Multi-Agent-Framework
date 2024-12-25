@@ -13,6 +13,7 @@ import json
 from .utilities.logger import Logger
 from .utilities.utils import function_to_schema
 from .protocol import Member,Message
+import websockets.sync.client
 
 class Agent(Member):
     def __init__(
@@ -24,6 +25,7 @@ class Agent(Member):
             model_client: Union[OpenAI, AsyncOpenAI] = None,
             tools: List["function"] = None, # List of Python Functions
             dify_access_token: str = None,
+            websocket_url: str = None,
             verbose: bool = False
             ):
         """
@@ -37,6 +39,7 @@ class Agent(Member):
             model_client (Union[OpenAI, AsyncOpenAI], optional): The model client for the agent. Defaults to None.
             tools (List["function"], optional): The tools for the agent. Defaults to None.
             dify_access_token (str, optional): The Dify access token for the agent. Defaults to None.
+            websocket_url (str, optional): The websocket URL for the agent. Defaults to None.
             verbose (bool, optional): The verbosity of the agent. Defaults to False.
         
         """
@@ -46,7 +49,9 @@ class Agent(Member):
         self.model_client = model_client
         self.tools = tools
         self.dify_access_token = dify_access_token
+        self.websocket_url = websocket_url
         self.verbose = verbose
+        self._connect_to_websocket()
         # Tools Related Attributes
         self.tools_schema: List[Dict] = []
         self.tools_map: Dict[str, "function"] = {}
@@ -59,6 +64,9 @@ class Agent(Member):
         if self.dify_access_token:
             self._logger.log(level="info", message=f"Calling Dify agent [{self.name}]",color="bold_green")
             response = self._call_dify_http_agent(self.dify_access_token, message)
+        elif self.websocket_url:
+            self._logger.log(level="info", message=f"Calling Websocket agent [{self.name}]",color="bold_green")
+            response = self._call_websocket_agent(message)
         elif isinstance(self.model_client,OpenAI):
             self._logger.log(level="info", message=f"Calling OpenAI agent [{self.name}]",color="bold_green")
             response = self._call_openai_agent(message,model,use_tools)
@@ -162,6 +170,45 @@ class Agent(Member):
 
         return res  
     
+    def _call_websocket_agent(self, query: str) -> List[Message]:
+        """
+        This function calls the agent function to get the response.
+
+        Args:
+            query (str): The query to send to the agent.
+
+        Returns:
+            Message: The response from the agent.
+        """
+        if not self.ws:
+            self._logger.log(level="error", message="Websocket connection is not established", color="bold_red")
+            return []
+
+        message = {"content": query}
+
+        try:
+            self.ws.send(json.dumps(message))
+            response = self.ws.recv()
+            res = [Message(sender=self.name, action="talk", result=response)]
+            return res
+
+        except Exception as e:
+            self._logger.log(level="error", message=f"Error during websocket communication: {e}", color="bold_red")
+            return []
+
+    def _connect_to_websocket(self):
+        """
+        Connects to the websocket server.
+        """
+        if self.websocket_url:
+            try:
+                self.ws = websockets.sync.client.connect(self.websocket_url)
+                self._logger.log(level="info", message="Websocket connection established", color="bold_green")
+            except (websockets.exceptions.InvalidURI, websockets.exceptions.InvalidHandshake, OSError) as e:
+                self._logger.log(level="error", message=f"Failed to connect to websocket: {e}", color="bold_red")
+                self.ws = None
+        else:
+            self.ws = None
 
     def _process_tools(self) -> None:
         """
