@@ -10,4 +10,4 @@ from .protocol import Env, Message, GroupMessageProtocol, Member
 
 # Define any package-level variables or functions here
 
-__all__ = ['Member','Agent', 'Group','Message', 'GroupMessageProtocol', 'Env', 'World']
+__all__ = ['Member','Agent','Message', 'Group','GroupMessageProtocol', 'Env', 'World']
