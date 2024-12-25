@@ -39,6 +39,12 @@ if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=5358)
 
 
+
+# ------------------------------------------------------------------------------------------------
+
+# python src/service/websocket_agent_demo.py
+
+
 # ------------------------------------------------------------------------------------------------
 
 # import asyncio
@@ -55,6 +61,23 @@ if __name__ == "__main__":
 #         print(f"Response from server: {response}")
 
 # asyncio.run(send_message())
+
+# ------------------------------------------------------------------------------------------------
+
+# import websockets.sync.client
+# import json
+
+# def send_message():
+#     uri = "ws://localhost:5358/ws_agent_demo"
+#     ws = websockets.sync.client.connect(uri)
+
+#     message = {"content": "你是谁？"}
+#     ws.send(json.dumps(message))
+    
+#     response = ws.recv()
+#     print(f"Response from server: {response}")
+
+# send_message()
 
 # ------------------------------------------------------------------------------------------------
 
