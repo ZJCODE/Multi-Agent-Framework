@@ -1,3 +1,11 @@
+# -*- coding: utf-8 -*-
+"""
+@Time: 2024/12/25 14:00
+@Author: ZJun
+@File: agent.py
+@Description: This file contains the Agent class which is a subclass of the Member class. The Agent class is used to represent an agent in the system.
+"""
+
 from typing import List,Union,Dict
 from openai import OpenAI,AsyncOpenAI
 import requests

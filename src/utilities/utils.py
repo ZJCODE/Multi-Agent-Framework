@@ -1,3 +1,12 @@
+# -*- coding: utf-8 -*-
+"""
+@Time: 2024/12/25 14:00
+@Author: ZJun
+@File: utils.py
+@Description: This file contains utility functions.
+"""
+
+
 import inspect
 
 def function_to_schema(func) -> dict:

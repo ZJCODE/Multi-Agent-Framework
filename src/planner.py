@@ -1,3 +1,12 @@
+# -*- coding: utf-8 -*-
+"""
+@Time: 2024/12/25 14:00
+@Author: ZJun
+@File: planner.py
+@Description: This file contains the GroupPlanner class which is used to plan tasks and assign sub-tasks to group members.
+"""
+
+
 from openai import OpenAI
 from pydantic import BaseModel
 from typing import List,Literal

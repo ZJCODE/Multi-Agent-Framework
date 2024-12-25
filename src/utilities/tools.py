@@ -1,3 +1,12 @@
+# -*- coding: utf-8 -*-
+"""
+@Time: 2024/12/25 14:00
+@Author: ZJun
+@File: tools.py
+@Description: This file contains the tools for the agent to use.
+"""
+
+
 from duckduckgo_search import DDGS
 import requests
 from bs4 import BeautifulSoup

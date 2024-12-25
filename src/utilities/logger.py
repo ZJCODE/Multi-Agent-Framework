@@ -1,3 +1,11 @@
+# -*- coding: utf-8 -*-
+"""
+@Time: 2024/12/25 14:00
+@Author: ZJun
+@File: logger.py
+@Description: This file contains the Logger class which is used to log messages.
+"""
+
 from datetime import datetime
 from pydantic import BaseModel, Field, PrivateAttr
 from .printer import Printer

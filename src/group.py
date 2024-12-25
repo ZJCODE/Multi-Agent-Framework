@@ -1,3 +1,11 @@
+# -*- coding: utf-8 -*-
+"""
+@Time: 2024/12/25 14:00
+@Author: ZJun
+@File: group.py
+@Description: This file contains the Group class which is used to represent a group of agents in the system.
+"""
+
 import graphviz
 from openai import OpenAI
 import random

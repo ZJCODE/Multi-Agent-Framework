@@ -1,3 +1,11 @@
+# -*- coding: utf-8 -*-
+"""
+@Time: 2024/12/25 14:00
+@Author: ZJun
+@File: printer.py
+@Description: This file contains the Printer class which is used to print messages with different colors.
+"""
+
 from typing import Optional
 
 class Printer:

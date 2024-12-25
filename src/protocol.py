@@ -1,3 +1,11 @@
+# -*- coding: utf-8 -*-
+"""
+@Time: 2024/12/25 14:00
+@Author: ZJun
+@File: protocol.py
+@Description: This file contains the data classes for the protocol used in the system.
+"""
+
 from dataclasses import dataclass, field
 from typing import List, Tuple, Dict, Optional, Union
 import re
