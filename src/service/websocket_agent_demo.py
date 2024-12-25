@@ -1,3 +1,11 @@
+# -*- coding: utf-8 -*-
+"""
+@Time: 2024/12/25 17:00
+@Author: ZJun
+@File: agent.py
+@Description: This file build a simple WebSocket agent demo by using WebSocket.
+"""
+
 from fastapi import FastAPI, WebSocket
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
