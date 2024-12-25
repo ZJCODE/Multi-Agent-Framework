@@ -51,7 +51,7 @@ model_client = OpenAI()
 
 ### Step One
 
-> `Agent` is the basic unit of the framework, it can build from scratch or connect to third-party agents
+> Agent is the basic unit of the framework, it can build from scratch or connect to third-party agents
 
 Creat Agent like this 
 
@@ -114,7 +114,7 @@ agent = Agent(name="assistant",
 
 ### Step Two
 
-> `Env` is the environment where agents live, you can add a description and agents to the environment. In addition,it can be created with or without relationships between agents, and can also set the language used in the environment. Env will be used to create a group of agents.
+> Env is the environment where agents live, you can add a description and agents to the environment. In addition,it can be created with or without relationships between agents, and can also set the language used in the environment. Env will be used to create a group of agents.
 
 Create Env like this (all agents are fully connected by default)
 
@@ -149,7 +149,7 @@ env = Env(
 
 ### Step Three
 
-> `Group` is a collection of agents that can be used to chat, perform tasks, and handle basic control with a human in the loop.
+> Group is a collection of agents that can be used to chat, perform tasks, and handle basic control with a human in the loop.
 
 Build Group like this
 
