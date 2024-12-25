@@ -88,7 +88,7 @@ or connect a third-party agent that was created at Dify like this.
 mathematician = Agent(name="mathematician",
     role="Mathematician", 
     description="Transfer to me if you need help with math.", 
-    dify_access_token=os.environ.get("AGENT1_ACCESS_TOKEN"),
+    dify_access_token="app-rlK8IzzWCVkNbkxxxxxxx",
     verbose=True)
 # persona is not needed for Dify agent, it already has its own persona
 ```
