@@ -62,6 +62,12 @@ artist = Agent(name="artist",
         verbose=True)
 ```
 
+can use agent like this
+
+```python
+response = artist.do("Can you help me with art?",model="gpt-4o-mini")
+```
+
 can add tools like this
 
 ```python
