@@ -122,6 +122,35 @@ class Group:
             self.current_agent = random.choice([m.name for m in self.env.members]) if self.env.members else None
             self._logger.log("info",f"current agent {member_name} is deleted, randomly select {self.current_agent} as the new current agent")
         self._logger.log("info",f"Successfully delete member {member_name}")
+        # call llm to generate a summary of the group messages which is a take-away for the deleted member
+        # Todo
+        take_away = f"take-away for the deleted member {member_name}"
+        return take_away
+
+    def dismiss_group(self):
+        if self.workspace:
+            group_workspace = os.path.join(self.workspace, self.group_id)
+            group_messages_file = os.path.join(group_workspace, "group_messages.md")
+            with open(group_messages_file, "w") as f:
+                # save Env object
+                f.write(f"### Group ID:\n{self.group_id}\n\n")
+                f.write(f"### Group Description:\n{self.env.description}\n\n")
+                f.write(f"### Group Members:\n")
+                for member in self.env.members:
+                    f.write(f"{member.name} ({member.role})\n")
+                f.write("\n")
+                # relationship
+                f.write(f"### Group Relationships:\n")
+                for k, v in self.env.relationships.items():
+                    f.write(f"{k}: {v}\n")
+                f.write("\n")
+                f.write(f"### Group Messages:\n")
+                # save group messages
+                for message in self.group_messages.context:
+                    f.write(f"{message.sender}:{message.action}\n{message.result}\n\n")
+            self._logger.log("info",f"Group Information saved in {group_workspace}")
+        for member in self.env.members:
+            self.delete_member(member.name)
 
     def invite_member(self, role_description, model="gpt-4o-mini"):
         """
