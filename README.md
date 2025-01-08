@@ -18,7 +18,7 @@ Try it: [Simple demo for multi-agent](https://agentstalk.streamlit.app/)
 
 - [How to build Group of Agents](examples/001%20group.ipynb)
 - [Chat with Group of Agents](examples/002%20chat.ipynb)
-- [Internal dialogue within the group](examples/003%20dialogue.ipynb)
+- [Internal dialogue within Group of Agents](examples/003%20dialogue.ipynb)
 - [Task for Group of Agents](examples/004%20task.ipynb)
 - [Low Level API for Group Discussion with Human in the Loop](examples/999%20low-level.ipynb)
 
