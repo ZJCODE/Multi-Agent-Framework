@@ -16,6 +16,8 @@ from tenacity import retry, wait_random_exponential, stop_after_attempt
 from typing import Dict, Optional, Literal, Tuple,List,Union
 import os
 import datetime
+import json
+from dataclasses import asdict
 
 from .utilities.logger import Logger
 from .protocol import Member, Env, Message, GroupMessageProtocol
@@ -98,7 +100,7 @@ class Group:
         self.update_group_messages(Message(sender="system",action="add_member",result=f"{member.name} joined the group."))
         self._logger.log("info",f"Succesfully add member {member.name}")
 
-    def delete_member(self, member_name:str):
+    def delete_member(self, member_name:str,with_leave_message:bool=True):
         """
         Delete a member from the group.
 
@@ -108,6 +110,7 @@ class Group:
         if member_name not in self.members_map:
             self._logger.log("warning",f"Member with name {member_name} does not exist",color="red")
             return
+        take_away = self.summary_group_messages(member_name,model="gpt-4o-mini")
         self.env.members = [m for m in self.env.members if m.name != member_name]
         self.members_map.pop(member_name)
         self.member_iterator = itertools.cycle(self.env.members)
@@ -116,41 +119,50 @@ class Group:
         self._set_env_public()
         self.group_messages.env = self.env_public
         if self.planner: self.planner.env = self.env
-        self.update_group_messages(Message(sender="system",action="delete_member",result=f"{member_name} left the group"))
-        # todo : member_name summary recent messages in this group and take it with him/her
+        if with_leave_message:
+            self.update_group_messages(Message(sender="system",action="delete_member",result=f"{member_name} has left."))
         if self.current_agent == member_name:
             self.current_agent = random.choice([m.name for m in self.env.members]) if self.env.members else None
             self._logger.log("info",f"current agent {member_name} is deleted, randomly select {self.current_agent} as the new current agent")
         self._logger.log("info",f"Successfully delete member {member_name}")
-        # call llm to generate a summary of the group messages which is a take-away for the deleted member
-        # Todo
-        take_away = f"take-away for the deleted member {member_name}"
+
         return take_away
+    
+    def summary_group_messages(self,member_name:str,model:str="gpt-4o-mini"):
+
+        messages = [{"role":"system","content":"You are good at summarizing.notice what each member has said and summarize the group messages."}]
+
+        prompt = (
+            f"### Group Messages\n"
+            f"{json.dumps(asdict(self.group_messages), indent=4)}\n\n"
+            f"### Task\n"
+            f"provide a summary of the events in the group from {member_name}'s viewpoint, using {member_name} as the first-person narrator."
+            f"just return the summary in simple sentences."
+        )
+
+        messages.append({"role":"user","content":prompt})
+
+        response = self.model_client.chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    tools=None,
+                    tool_choice=None,
+                )
+            
+        response_message = response.choices[0].message
+
+        return response_message.content
 
     def dismiss_group(self):
         if self.workspace:
             group_workspace = os.path.join(self.workspace, self.group_id)
-            group_messages_file = os.path.join(group_workspace, "group_messages.md")
+            group_messages_file = os.path.join(group_workspace, "group_messages.json")
             with open(group_messages_file, "w") as f:
-                # save Env object
-                f.write(f"### Group ID:\n{self.group_id}\n\n")
-                f.write(f"### Group Description:\n{self.env.description}\n\n")
-                f.write(f"### Group Members:\n")
-                for member in self.env.members:
-                    f.write(f"{member.name} ({member.role})\n")
-                f.write("\n")
-                # relationship
-                f.write(f"### Group Relationships:\n")
-                for k, v in self.env.relationships.items():
-                    f.write(f"{k}: {v}\n")
-                f.write("\n")
-                f.write(f"### Group Messages:\n")
-                # save group messages
-                for message in self.group_messages.context:
-                    f.write(f"{message.sender}:{message.action}\n{message.result}\n\n")
+                f.write(json.dumps(asdict(self.group_messages), indent=4))
             self._logger.log("info",f"Group Information saved in {group_workspace}")
         for member in self.env.members:
-            self.delete_member(member.name)
+            take_away = self.delete_member(member.name,with_leave_message=False)
+            self._logger.log("info",f"\nTake-away for {member.name}:\n{take_away}")
 
     def invite_member(self, role_description, model="gpt-4o-mini"):
         """
@@ -602,11 +614,13 @@ class Group:
             f"{previous_messages}\n\n"
             f"### Other people's Messages\n"
             f"{others_messages}\n\n"
+            f"### Note\n"
+            f"previous messages are in the format of ```sender:action\nmessage\n```,when you return the message,just return the message content without code block or sender and action."
             f"### Task\n"
             f"Consider the Background Information and the previous messages. Now, it's your turn."
         )
 
-        if self.group_messages.context[-1].sender == "user":
+        if len(self.group_messages.context) > 0 and self.group_messages.context[-1].sender == "user":
             if self.group_messages.context[-1].action == "task":
                 current_user_task = self.group_messages.context[-1].result
                 prompt += f"\n\n### Current Task\n{current_user_task}\n\n"
