@@ -110,7 +110,7 @@ class Group:
         if member_name not in self.members_map:
             self._logger.log("warning",f"Member with name {member_name} does not exist",color="red")
             return
-        take_away = self.summary_group_messages(member_name,model="gpt-4o-mini")
+        takeaway = self.summary_group_messages(member_name,model="gpt-4o-mini")
         self.env.members = [m for m in self.env.members if m.name != member_name]
         self.members_map.pop(member_name)
         self.member_iterator = itertools.cycle(self.env.members)
@@ -126,7 +126,7 @@ class Group:
             self._logger.log("info",f"current agent {member_name} is deleted, randomly select {self.current_agent} as the new current agent")
         self._logger.log("info",f"Successfully delete member {member_name}")
 
-        return take_away
+        return takeaway
     
     def summary_group_messages(self,member_name:str,model:str="gpt-4o-mini"):
 
@@ -161,8 +161,8 @@ class Group:
                 f.write(json.dumps(asdict(self.group_messages), indent=4))
             self._logger.log("info",f"Group Information saved in {group_workspace}")
         for member in self.env.members:
-            take_away = self.delete_member(member.name,with_leave_message=False)
-            self._logger.log("info",f"\nTake-away for {member.name}:\n{take_away}")
+            takeaway = self.delete_member(member.name,with_leave_message=False)
+            self._logger.log("info",f"\nTakeaway for {member.name}:\n{takeaway}")
 
     def invite_member(self, role_description, model="gpt-4o-mini"):
         """
@@ -218,8 +218,6 @@ class Group:
 
         self.add_member(invite_agent,relation)
 
-
-
     def user_input(self, message:str,action:str="talk",alias = None):
         """
         Record the user input.
@@ -258,6 +256,27 @@ class Group:
         for r in response:
             self._logger.log("info",f"Agent {self.current_agent} response:\n\n{r.result}",color="bold_purple")
         return response
+
+    
+    def start_talking(self,model:str="gpt-4o-mini", message_cut_off:int=3,max_turns:int=20):
+        """
+        members of the group start to talk based on current group env and messages.
+        """
+
+        end_of_talk_prompt = (
+            "\nThe system should consider factors such as whether the conversation's goal has been achieved, if the topic has been exhausted, or if the dialogue becomes repetitive. Include scenarios where time constraints, task prioritization, social cues, or external events prompt a natural conclusion. Address how emotional shifts or changes in relationships might lead to abrupt endings. Incorporate strategies like summarizing the discussion, suggesting follow-up actions, and using polite farewells to ensure smooth and realistic conversation endings.Put `[=END=]` at the end of the conversation to indicate that the conversation is over like this: `Goodbye, Alice. [=END=]`"
+        )
+
+        self.group_messages.env.description += end_of_talk_prompt
+        
+        for _ in range(max_turns):
+            ms = self.call_agent(next_speaker_select_mode = "auto",include_current=False,model=model,message_cut_off=message_cut_off)
+            if "[=END=]" in ms[-1].result:
+                break
+        if "[=END=]" not in ms[-1].result:
+            self.user_input("Make an effort to conclude the conversation gracefully within the next two exchanges, avoiding any further questions or prompts.")
+            self.call_agent(next_speaker_select_mode = "auto",include_current=False,model=model,message_cut_off=message_cut_off)
+            self.call_agent(next_speaker_select_mode = "auto",include_current=False,model=model,message_cut_off=message_cut_off)
 
     def chat(
             self, 
