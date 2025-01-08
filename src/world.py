@@ -20,7 +20,7 @@ class World:
     
 
     def meet():
-        # generate environment
+        # generate environment, can include observation, description, members ...
         # generate agents
         # generate group
         # do something in group

@@ -55,12 +55,13 @@ class Group:
         self.planner: GroupPlanner = None
         self.current_agent: Optional[str] = self.env.members[0].name # default current agent is the first agent in the members list
         self.members_map: Dict[str, Member] = {m.name: m for m in self.env.members}
+        self.observed_speakers:Dict[str,set[str]] = {m.name:set() for m in self.env.members}
         self.member_iterator = itertools.cycle(self.env.members)
         self._rectify_relationships()
         self._set_env_public()
         self.group_messages: GroupMessageProtocol = GroupMessageProtocol(group_id=self.group_id,env=self.env_public)
         self._logger.log("info",f"Group initialized with ID {self.group_id}")
-
+        
     def set_current_agent(self, agent_name: str):
         """
         Set the current agent by name if the agent exists in the members map.
@@ -91,6 +92,7 @@ class Group:
             return
         self.env.members.append(member)
         self.members_map[member.name] = member
+        self.observed_speakers[member.name] = set()
         self.member_iterator = itertools.cycle(self.env.members)
         self._rectify_relationships()
         self._add_relationship(member,relation)
@@ -110,6 +112,7 @@ class Group:
         if member_name not in self.members_map:
             self._logger.log("warning",f"Member with name {member_name} does not exist",color="red")
             return
+        speakers = self.observed_speakers.pop(member_name)
         takeaway = self.summary_group_messages(member_name,model="gpt-4o-mini")
         self.env.members = [m for m in self.env.members if m.name != member_name]
         self.members_map.pop(member_name)
@@ -126,7 +129,7 @@ class Group:
             self._logger.log("info",f"current agent {member_name} is deleted, randomly select {self.current_agent} as the new current agent")
         self._logger.log("info",f"Successfully delete member {member_name}")
 
-        return takeaway
+        return takeaway,speakers
     
     def summary_group_messages(self,member_name:str,model:str="gpt-4o-mini"):
 
@@ -161,8 +164,8 @@ class Group:
                 f.write(json.dumps(asdict(self.group_messages), indent=4))
             self._logger.log("info",f"Group Information saved in {group_workspace}")
         for member in self.env.members:
-            takeaway = self.delete_member(member.name,with_leave_message=False)
-            self._logger.log("info",f"\nTakeaway for {member.name}:\n{takeaway}")
+            takeaway,speakers = self.delete_member(member.name,with_leave_message=False)
+            self._logger.log("info",f"\nTakeaway for {member.name}:\n{takeaway} \n\nSpeakers observed by {member.name}:\n{speakers}")
 
     def invite_member(self, role_description, model="gpt-4o-mini"):
         """
@@ -255,6 +258,10 @@ class Group:
         self.update_group_messages(response)
         for r in response:
             self._logger.log("info",f"Agent {self.current_agent} response:\n\n{r.result}",color="bold_purple")
+
+        for member in self.env.members:
+            if member.name != self.current_agent:
+                self.observed_speakers[member.name].add(self.current_agent)
         return response
 
     

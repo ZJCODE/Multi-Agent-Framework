@@ -171,10 +171,11 @@ designer = Agent(name="designer",
 g.add_member(designer)
 ```
 
-or delete agent from group dynamically like this (return takeaway is the group message summary for the agent)
+or delete agent from group dynamically like this 
 
 ```python
-takeaway = g.delete_member("artist") # delete by name
+takeaway,observed_speakers = g.delete_member("artist") # delete by name
+# will return takeaway and observed_speakers for memory retrieval in the future
 ```
 
 or invite agent to join group dynamically like this
@@ -184,10 +185,11 @@ or invite agent to join group dynamically like this
 g.invite_member("a philosopher who calls himself agent4 , he is a big fan of plato and aristotle")
 ```
 
-or dismiss the group (each agent will review the takeaway for themselves based on what happened in the group)
+or dismiss the group like this
 
 ```python
 g.dismiss_group()
+# when the group is dismissed, all agents will be deleted and each of them will get their own memory back
 ```
 
 ### Step Four
