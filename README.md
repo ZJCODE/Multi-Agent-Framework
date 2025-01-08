@@ -192,17 +192,22 @@ g.dismiss_group()
 
 ### Step Four
 
-Some examples of how to use the group
+> Some examples of how to use the group
 
+chat with group of agents(dynamic agent selection)
 
 ```python
 response= g.chat("Can you explain the concept of complex numbers?",model="gpt-4o-mini")
 response= g.chat("Can you help me with art?",model="gpt-4o-mini")
 ```
 
+internal dialogue within group of agents based on the current environment description
+
 ```python
 g.dialogue(model="gpt-4o-mini",max_turns=10)
 ```
+
+task for group of agents
 
 ```python
 response = g.task("I want to build a simplistic and user-friendly bicycle help write a design brief.",model="gpt-4o-mini",strategy="auto")

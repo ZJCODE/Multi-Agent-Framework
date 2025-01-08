@@ -17,3 +17,12 @@ class World:
 
     def __str__(self):
         return "World is a place where agents interact."
+    
+
+    def meet():
+        # generate environment
+        # generate agents
+        # generate group
+        # do something in group
+        # dissmis group
+        pass
