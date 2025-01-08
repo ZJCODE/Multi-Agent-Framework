@@ -258,7 +258,7 @@ class Group:
         return response
 
     
-    def start_talking(self,model:str="gpt-4o-mini", message_cut_off:int=3,max_turns:int=20):
+    def dialogue(self,model:str="gpt-4o-mini", message_cut_off:int=3,max_turns:int=20):
         """
         members of the group start to talk based on current group env and messages.
         """
@@ -634,7 +634,7 @@ class Group:
             f"### Other people's Messages\n"
             f"{others_messages}\n\n"
             f"### Note\n"
-            f"previous messages are in the format of ```sender:action\nmessage\n```,when you return the message,just return the message content without code block or sender and action."
+            f"Previous messages follow the format of `sender:action\nmessage\n`. When you respond, only include the message content, excluding the code block, sender, and action."
             f"### Task\n"
             f"Consider the Background Information and the previous messages. Now, it's your turn."
         )

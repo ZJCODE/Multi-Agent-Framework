@@ -18,7 +18,8 @@ Try it: [Simple demo for multi-agent](https://agentstalk.streamlit.app/)
 
 - [How to build Group of Agents](examples/001%20group.ipynb)
 - [Chat with Group of Agents](examples/002%20chat.ipynb)
-- [Task for Group of Agents](examples/003%20task.ipynb)
+- [Internal dialogue within the group](examples/003%20dialogue.ipynb)
+- [Task for Group of Agents](examples/004%20task.ipynb)
 - [Low Level API for Group Discussion with Human in the Loop](examples/999%20low-level.ipynb)
 
 
@@ -197,6 +198,10 @@ Some examples of how to use the group
 ```python
 response= g.chat("Can you explain the concept of complex numbers?",model="gpt-4o-mini")
 response= g.chat("Can you help me with art?",model="gpt-4o-mini")
+```
+
+```python
+g.dialogue(model="gpt-4o-mini",max_turns=10)
 ```
 
 ```python
