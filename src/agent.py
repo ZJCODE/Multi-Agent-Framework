@@ -14,6 +14,9 @@ from .utilities.logger import Logger
 from .utilities.utils import function_to_schema
 from .protocol import Member,Message
 import websockets.sync.client
+from iagent.agents import Agent
+import iagent.common.schemas.schema.Message  as IAgentMessage
+
 
 class Agent(Member):
     def __init__(
@@ -26,6 +29,7 @@ class Agent(Member):
             tools: List["function"] = None, # List of Python Functions
             dify_access_token: str = None,
             websocket_url: str = None,
+            iagent_id: str = None,
             verbose: bool = False
             ):
         """
@@ -50,6 +54,7 @@ class Agent(Member):
         self.tools = tools
         self.dify_access_token = dify_access_token
         self.websocket_url = websocket_url
+        self.iagent_id = iagent_id
         self.verbose = verbose
         self._connect_to_websocket()
         # Tools Related Attributes
@@ -60,7 +65,7 @@ class Agent(Member):
     def __str__(self):
         return f"{self.name} is a {self.role}."
     
-    def do(self, message: str,model:str="gpt-4o-mini",use_tools:bool=True) -> List[Message]:
+    def do(self, message: str,model:str="gpt-4o-mini",use_tools:bool=True,group_id = None) -> List[Message]:
         if self.dify_access_token:
             self._logger.log(level="info", message=f"Calling Dify agent [{self.name}]",color="bold_green")
             response = self._call_dify_http_agent(self.dify_access_token, message)
@@ -70,6 +75,9 @@ class Agent(Member):
         elif isinstance(self.model_client,OpenAI):
             self._logger.log(level="info", message=f"Calling OpenAI agent [{self.name}]",color="bold_green")
             response = self._call_openai_agent(message,model,use_tools)
+        elif self.iagent_id:
+            self._logger.log(level="info", message=f"Calling IAgent agent [{self.name}]",color="bold_green")
+            response = self._call_iagent(message,group_id)
         else:
             self._logger.log(level="error", message=f"No model client or Dify access token provided for agent {self.name}.",color="red")
             raise ValueError("No model client or Dify access token provided, please provide one for agent {self.name}.")
@@ -196,6 +204,14 @@ class Agent(Member):
             self._logger.log(level="error", message=f"Error during websocket communication: {e}", color="bold_red")
             return []
 
+
+    def _call_iagent(self, query: str,group_id = None) -> List[Message]:
+        if not self.iagent:
+            self._logger.log(level="error", message="IAgent instance is not loaded", color="bold_red")
+            return []
+        # todo 
+        
+
     def _connect_to_websocket(self):
         """
         Connects to the websocket server.
@@ -209,6 +225,15 @@ class Agent(Member):
                 self.ws = None
         else:
             self.ws = None
+
+    def _get_iagent_instance(self) -> Agent:
+        if self.iagent_id:
+            self.iagent = self.load_iagent(self.iagent_id)
+        else:
+            self.iagent = None
+
+    def _load_iagent(self, iagent_id: str) -> Agent:
+        return None
 
     def _process_tools(self) -> None:
         """
