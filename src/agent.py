@@ -128,7 +128,7 @@ class Agent(Member):
 
         system_message = [{"role": "system", "content": instructions}]
 
-        self._logger.log(level="info", message=f"instructions:\n{instructions}",color="bold_green")
+        # self._logger.log(level="info", message=f"instructions:\n{instructions}",color="bold_green")
 
         messages = system_message + [{"role": "user", "content": query}]
 
