@@ -112,7 +112,7 @@ class Group:
         if member_name not in self.members_map:
             self._logger.log("warning",f"Member with name {member_name} does not exist",color="red")
             return
-        speakers = self.observed_speakers.pop(member_name)
+        observed_speakers = self.observed_speakers.pop(member_name)
         takeaway = self.summary_group_messages(member_name,model="gpt-4o-mini")
         self.env.members = [m for m in self.env.members if m.name != member_name]
         self.members_map.pop(member_name)
@@ -129,7 +129,7 @@ class Group:
             self._logger.log("info",f"current agent {member_name} is deleted, randomly select {self.current_agent} as the new current agent")
         self._logger.log("info",f"Successfully delete member {member_name}")
 
-        return takeaway,speakers
+        return takeaway,observed_speakers
     
     def summary_group_messages(self,member_name:str,model:str="gpt-4o-mini"):
 
@@ -163,9 +163,12 @@ class Group:
             with open(group_messages_file, "w") as f:
                 f.write(json.dumps(asdict(self.group_messages), indent=4))
             self._logger.log("info",f"Group Information saved in {group_workspace}")
+        takeaways = {}
         for member in self.env.members:
-            takeaway,speakers = self.delete_member(member.name,with_leave_message=False)
-            self._logger.log("info",f"\nTakeaway for {member.name}:\n{takeaway} \n\nSpeakers observed by {member.name}:\n{speakers}")
+            takeaway,observed_speakers = self.delete_member(member.name,with_leave_message=False)
+            self._logger.log("info",f"\nTakeaway for {member.name}:\n{takeaway} \n\nSpeakers observed by {member.name}:\n{observed_speakers}")
+            takeaways[member.name] = {"takeaway":takeaway,"speakers":observed_speakers}
+        return takeaways
 
     def invite_member(self, role_description, model="gpt-4o-mini"):
         """
@@ -284,6 +287,8 @@ class Group:
             self.user_input("Make an effort to conclude the conversation gracefully within the next two exchanges, avoiding any further questions or prompts.")
             self.call_agent(next_speaker_select_mode = "auto",include_current=False,model=model,message_cut_off=message_cut_off)
             self.call_agent(next_speaker_select_mode = "auto",include_current=False,model=model,message_cut_off=message_cut_off)
+
+        self.group_messages.env.description = self.env.description
 
     def chat(
             self, 
