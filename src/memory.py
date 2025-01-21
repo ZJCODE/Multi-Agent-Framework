@@ -70,3 +70,19 @@ class Memory:
         if len(self.long_term_memory.event_memory) > 0:
             event_memory = self.long_term_memory.event_memory[-max_results:]
         return fact_memory,event_memory
+
+    def get_memorys_str(self,max_results:int=5):
+        working_memory = self.retrieve_working_memory()
+        fact_memory, event_memory = self.retrieve_long_term_memory(max_results)
+        memorys = []
+        if fact_memory:
+            memorys.append("### Recent Fact Memory:")
+            memorys.extend([f"- {fact}" for fact in fact_memory])
+        if event_memory:
+            memorys.append("### Recent Event Memory:")
+            memorys.extend([f"- {event}" for event in event_memory])
+        if working_memory:
+            memorys.append("### Working Memory:")
+            memorys.extend([f"- {memory}" for memory in working_memory])
+        memorys_str = "\n".join(memorys)
+        return memorys_str

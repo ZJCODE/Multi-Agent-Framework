@@ -21,7 +21,7 @@ from dataclasses import asdict
 
 from .utilities.logger import Logger
 from .protocol import Member, Env, Message, GroupMessageProtocol
-from .planner import GroupPlanner
+from .group_planner import GroupPlanner
 from .agent import Agent
 
 class Group:

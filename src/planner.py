@@ -1,281 +1,173 @@
-# -*- coding: utf-8 -*-
-"""
-@Time: 2024/12/25 14:00
-@Author: ZJun
-@File: planner.py
-@Description: This file contains the GroupPlanner class which is used to plan tasks and assign sub-tasks to group members.
-"""
+from typing import List
+from pydantic import BaseModel,Field
 
+class HourPlan(BaseModel):
+    hour: int
+    plan: str 
+class OneDayPlan(BaseModel):
+    plans: List[HourPlan]
 
-from openai import OpenAI
-from pydantic import BaseModel
-from typing import List,Literal
-from .protocol import Env
-from .utilities.logger import Logger
-
-class GroupPlanner:
-    def __init__(self, env: Env,model_client: OpenAI,verbose: bool = False):
-        self.env = env
+class Planner:
+    def __init__(self,
+                 model_client=None,
+                 model:str="gpt-4o-mini",
+                 verbose:bool=False):
         self.model_client = model_client
-        self.plan = []
-        self._logger = Logger(verbose=verbose)
+        self.model = model
+        self.verbose = verbose 
+        self.daily_plan = []
 
-        self.planner_prompt = (
-            "As an experienced planner with strong analytical and organizational skills, your role is to analyze tasks and delegate sub-tasks to group members.\n"
-            "1. Analyze Tasks:\n"
-            "   - Break down the main task into smaller, manageable sub-tasks.\n"
-            "   - Identify dependencies and determine the order in which tasks need to be completed.\n"
-            "2. Assess Member Capabilities:\n"
-            "   - Evaluate the skills and strengths of each team member to match them with appropriate tasks.\n"
-            "3. Delegate Sub-Tasks:\n"
-            "   - Assign each sub-task to the most suitable team member.\n"
-            "   - Ensure that each task includes:\n"
-            "     - The agent's name.\n"
-            "     - A clear task description.\n"
-            "     - A list of agents from whom they need to receive information (if applicable).\n"
-            "4. Consider Task Order:\n"
-            "   - Arrange tasks in a logical sequence, considering dependencies and the flow of information.\n"
-        )
-
-    def set_task(self,task:str):
-        """
-        Set the task for the group.
-
-        Args:
-            task (str): The task for the group.
-        """
-        self.task = task
-
-    def planning(self,model:str="gpt-4o-mini"):
-        """
-        Plan the task and assign sub-tasks to the members.
-
-        Args:
-            model (str): The model to use for planning.
-        """
-        self._logger.log("info","Start planning the task")
-
-        member_list = ",".join([f'"{m.name}"' for m in self.env.members]) # for pydantic Literal
-
-        class_str = (
-            f"class Task(BaseModel):\n"
-            f"    agent_name:Literal[{member_list}]\n"
-            f"    task:str\n"
-            f"    receive_information_from:List[Literal[{member_list}]]\n"
-            f""
-            f"class Tasks(BaseModel):\n"
-            f"    tasks:List[Task]\n"
-        )
-        
-        exec(class_str, globals())
-
-        response_format = eval("Tasks")
-
-        members_description = "\n".join([f"- {m.name} ({m.role})" + (f" [tools available: {', '.join([x.__name__ for x in m.tools])}]" if m.tools else "") for m in self.env.members])
-
-
+    def plan_day(self, env_info: str,personal_info: str,memory: str):
+        system_message = "You are skilled at planning daily activities based on environmental information, personal information, and memory."
         prompt = (
-            f"### Contextual Information\n"
-            f"{self.env.description}\n\n"
-            f"### Potential Members\n"
-            f"{members_description}\n\n"
-            f"### Members' Relationship\n"
-            f"{self.env.relationships}\n\n"
-            f"### Task for Planning\n"
-            f"```\n{self.task}\n```\n\n"
-            f"### Strategy\n"
-            f"First, evaluate team members' skills and availability to form a balanced group, ensuring a mix of competencies and expertise."
-            f"Then, break the main task into prioritized sub-tasks and assign them based on expertise"
-            f"Ensure that essential details such as time, location, people involved, and resources that are mentioned in the task are included in the sub-tasks.""\n"
+            "### Environment Information:\n"
+            f"```{env_info}```\n"
+            "### Personal Information:\n"
+            f"```{personal_info}```\n"
+            "### Memory:\n"
+            f"```{memory}```\n\n"
+            "Based on the environment information, personal information, and memory, create a detailed daily plan for the next 24 hours. "
+            "Ensure the plan:\n"
+            "- Reflects personal preferences, goals, and relevant events from memory.\n"
+            "- Includes a specific activity for each hour from 12 AM to 11 PM.\n"
+            "Ensure the updated plan is practical, well-balanced, and aligned with the provided information."
+            "plans for 24 hours: "
         )
 
-        if self.env.language is not None:
-            prompt += f"\n\n### Response in Language: {self.env.language}\n"
-
-        messages = [{"role": "system", "content": self.planner_prompt}]
-
-        messages.extend([{"role": "user", "content": prompt}])
-        
-        completion = self.model_client.beta.chat.completions.parse(
-            model=model,
-            messages=messages,
-            temperature=0.0,
-            response_format=response_format,
-        )
-        
-        self.plan = completion.choices[0].message.parsed.tasks
-        self._logger.log("info","Planning finished")
-
-        tasks_str = "\n\n".join([f"Step {i+1}: {t.agent_name}\n{t.task}\nreceive information from: {t.receive_information_from}\n" for i,t in enumerate(self.plan)])
-        
-        self._logger.log("info",f"Task: {self.task}\n\nPlan:\n{tasks_str}",color="bold_blue")
-
-
-    def revise_plan(self,model:str="gpt-4o-mini"):
-
-        if self.plan is None:
-            raise ValueError("No plan to revise, please plan the task first by calling the planning method.")
-
-        self._logger.log("info","Start revising the plan")
-
-        members_description = "\n".join([f"- {m.name} ({m.role})" + (f" [tools available: {', '.join([x.__name__ for x in m.tools])}]" if m.tools else "") for m in self.env.members])
-
-        self._logger.log("info","Get feedback from the members")
-
-        feedback_prompt = (
-            f"### Contextual Information\n"
-            f"{self.env.description}\n\n"
-            f"### Potential Members\n"
-            f"{members_description}\n\n"
-            f"### Members' Relationship\n"
-            f"{self.env.relationships}\n\n"
-            f"### Task for Planning\n"
-            f"```\n{self.task}\n```\n\n"
-            f"### Initial Plan\n"
-            f"```\n{self.plan}\n```\n\n"
-            f"Please review the initial plan and offer constructive feedback, "
-            f"highlighting any improvements or adjustments that could enhance the project's success, "
-            f"response in a concise and clear sentence."
-        )
-
-        if self.env.language is not None:
-            feedback_prompt += f"\n\n### Response in Language: {self.env.language}\n"
-
-        feedbacks = []
-        for member in self.env.members:
-            response = member.do(feedback_prompt,model)
-            for r in response:
-                feedback_str = f"Feedback from {member.name}: {r.result}"
-                self._logger.log("info",feedback_str,color="bold_blue")
-                feedbacks.append(r)
-        
-        feedbacks_str = "\n".join([f"{f.sender}: {f.result}" for f in feedbacks])
-
-        member_list = ",".join([f'"{m.name}"' for m in self.env.members]) # for pydantic Literal
-
-        class_str = (
-            f"class Task(BaseModel):\n"
-            f"    agent_name:Literal[{member_list}]\n"
-            f"    task:str\n"
-            f"    receive_information_from:List[Literal[{member_list}]]\n"
-            f""
-            f"class Tasks(BaseModel):\n"
-            f"    tasks:List[Task]\n"
-        )
-        
-        exec(class_str, globals())
-
-        response_format = eval("Tasks")
-
-        prompt = (
-            f"### Contextual Information\n"
-            f"{self.env.description}\n\n"
-            f"### Potential Members\n"
-            f"{members_description}\n\n"
-            f"### Task for Planning\n"
-            f"```\n{self.task}\n```\n\n"
-            f"### Initial Plan\n"
-            f"```\n{self.plan}\n```\n\n"
-            f"### Feedbacks\n"
-            f"{feedbacks_str}\n\n"
-            f"Please revise the plan by addressing the feedback provided. Ensure that all concerns are considered,"
-            f"and make necessary adjustments to improve the plan's effectiveness and feasibility. "
-        )
-
-        if self.env.language is not None:
-            prompt += f"\n\n### Response in Language: {self.env.language}\n"
-
-        messages = [{"role": "system", "content": self.planner_prompt}]
-        messages.extend([{"role": "user", "content": prompt}])
-        
-        completion = self.model_client.beta.chat.completions.parse(
-            model=model,
-            messages=messages,
-            temperature=0.0,
-            response_format=response_format,
-        )
-        self.plan = completion.choices[0].message.parsed.tasks
-        self._logger.log("info","Revising the plan finished, replacing the initial plan with the revised plan")
-
-        tasks_str = "\n\n".join([f"Step {i+1}: {t.agent_name}\n{t.task}\nreceive information from: {t.receive_information_from}\n" for i,t in enumerate(self.plan)])
-
-        self._logger.log("info",f"Task: {self.task}\n\nRevised Plan:\n{tasks_str}",color="bold_blue")
-
-
-    def in_transit_revisions(self,current_task,current_response:str,model:str="gpt-4o-mini"):
-
-        self._logger.log("info",f"Decide weather to assign extra tasks before next task in the plan")
-
-
-        members_description = "\n".join([f"- {m.name} ({m.role})" + (f" [tools available: {', '.join([x.__name__ for x in m.tools])}]" if m.tools else "") for m in self.env.members])
-
-        member_list = f'"{current_task.agent_name}"' # for pydantic Literal
-
-        all_member_list = ",".join([f'"{m.name}"' for m in self.env.members]) # for pydantic Literal
-
-        class_str = (
-            f"class Task(BaseModel):\n"
-            f"    agent_name:Literal[{member_list}]\n"
-            f"    task:str\n"
-            f"    receive_information_from:List[Literal[{all_member_list}]]\n"
-            f""
-            f"class Tasks(BaseModel):\n"
-            f"    tasks:List[Task]\n"
-        )
-        
-        exec(class_str, globals())
-
-        response_format = eval("Tasks")
-
-        prompt = (
-            f"### Contextual Information\n"
-            f"{self.env.description}\n\n"
-            f"### Potential Members\n"
-            f"{members_description}\n\n"
-            f"### Task Overview\n"
-            f"```\n{self.task}\n```\n\n"
-            f"### Proposed Task Plan\n"
-            f"```\n{self.plan}\n```\n\n"
-            f"### Current Task Details\n"
-            f"```\n{current_task.task}\n```\n\n"
-            f"### Current Response\n"
-            f"```\n{current_response}\n```\n\n"
-            f"### Decision Point\n"
-            f"Based on the information above, decide whether to assign extra tasks to current agent before proceeding with the next task in the plan. "
-            f"Consider:\n"
-            f"1. Does the current response fully meet the requirements of the current task? Identify any gaps or incomplete aspects.\n"
-            f"2. Are there any unresolved dependencies or prerequisites that must be addressed before moving forward?\n"
-            f"3. Is there a need for further clarification or information before proceeding to the next task? Determine if additional details are required.\n"
-            f"Assign extra tasks only when necessary based on the evaluation above.\n"
-        )
-
-        if self.env.language is not None:
-            prompt += f"\n\n### Response in Language: {self.env.language}\n"
-
-        planner_assistant_prompt = (
-            "As a planner assistant, you play a crucial role in supporting the planning process by providing valuable insights and suggestions."
-            "Your feedback can help optimize task allocation and improve overall project efficiency."
-            "Review the current task, agent response, and existing plan, then decide whether additional tasks are needed."
-        )
-        
-        messages = [{"role": "system", "content": planner_assistant_prompt}]
-        messages.extend([{"role": "user", "content": prompt}])
+        messages = [{"role":"system","content":system_message}]
+        messages.append({"role":"user","content":prompt})
 
         completion = self.model_client.beta.chat.completions.parse(
-            model=model,
+            model=self.model,
             messages=messages,
             temperature=0.0,
-            response_format=response_format,
+            response_format=OneDayPlan
         )
+
+        one_day_plan = completion.choices[0].message.parsed
+
+        self.daily_plan = one_day_plan.plans
+
+    def update_plan(self, env_info: str,personal_info: str,memory: str,current_hour: int,extra_info: str):
+        # update the plan after the current hour based on the extra information
+        system_message = "You are skilled at updating the daily plan based on environmental information, personal information, memory, and current hour."
+        prompt = (
+            "### Environment Information:\n"
+            f"```{env_info}```\n"
+            "### Personal Information:\n"
+            f"```{personal_info}```\n"
+            "### Current Plan:\n"
+            f"```{self.daily_plan}```\n"
+            "### Memory:\n"
+            f"```{memory}```\n"
+            "### Current Hour:\n"
+            f"```{current_hour}```\n"
+            "### Extra Information:\n"
+            f"```{extra_info}```\n\n"
+            "Update the daily plan based on the current hour and extra information. Ensure the updated plan:\n"
+            "- Reflects personal preferences, goals, and relevant events from memory.\n"
+            "- Reassigns the activity for the current hour and adjusts activities for the following hours.\n"
+            "- Includes a specific activity for each hour from 12 AM to 11 PM.\n"
+            "Ensure the updated plan is practical, well-balanced, and aligned with the provided information."
+            "plans for 24 hours: "
+        )
+
+        messages = [{"role":"system","content":system_message}]
+        messages.append({"role":"user","content":prompt})
+
+        completion = self.model_client.beta.chat.completions.parse(
+            model=self.model,
+            messages=messages,
+            temperature=0.0,
+            response_format=OneDayPlan
+        )
+
+        one_day_plan = completion.choices[0].message.parsed
+
+        self.daily_plan = one_day_plan.plans
+
+    def next_action(self,env_info: str,personal_info: str,memory: str,current_hour: int):
+        current_hour_plan = self.get_current_hour_plan(current_hour)
+        system_message = "You are skilled at determining the next action based on the current hour and the daily plan."
+        prompt = (
+            "### Environment Information:\n"
+            f"```{env_info}```\n"
+            "### Personal Information:\n"
+            f"```{personal_info}```\n"
+            "### Memory:\n"
+            f"```{memory}```\n"
+            "### Current Hour:\n"
+            f"```{current_hour}```\n"
+            "### Current Hour Plan:\n"
+            f"```{current_hour_plan}```\n\n"
+            "Based on the environment information, personal information, memory, and current hour plan, determine the next action. "
+            "action can be go to somewhere, do something, or meet someone etc."
+            "Ensure the next action is aligned with the current hour plan and the provided information."
+        )
+
+        messages = [{"role":"system","content":system_message}]
+        messages.append({"role":"user","content":prompt})
+
+        response = self.model_client.chat.completions.create(
+                        model=self.model,
+                        messages=messages,
+                        tools=None,
+                        tool_choice=None,
+                    )
         
-        extra_task = completion.choices[0].message.parsed.tasks
+        return response.choices[0].message.content
+        
+
+    def get_daily_plan(self):
+        return self.daily_plan
     
-        if extra_task:
+    def get_current_hour_plan(self,current_hour:int):
+        for hour_plan in self.daily_plan:
+            if hour_plan.hour == current_hour:
+                return f"hour:{hour_plan.hour} -> {hour_plan.plan}"
+        return f"hour:{current_hour} -> Sleep."
 
-            tasks_str = "\n\n".join([f"Step {i+1}: {t.agent_name}\n{t.task}\nreceive information from: {t.receive_information_from}\n" for i,t in enumerate(extra_task)])
+if __name__ == "__main__":
+    
+    from dotenv import load_dotenv
+    from openai import OpenAI
 
-            self._logger.log("info",f"Extra Task:\n{tasks_str}",color="bold_blue")
-        else:
-            self._logger.log("info","No extra task assigned",color="bold_blue")
+    # load the environment variables
+    load_dotenv()
+    # create a model client
+    model_client = OpenAI()
 
-        return extra_task
+    planner = Planner(model_client=model_client,model="gpt-4o",verbose=True)
+    
+    env_info = "This is year 2100,the world is a futuristic place with advanced technology. Today's weather is sunny and warm."
+
+    personal_info = "Your name is Alice. You hold the position of a manager. You prefer mornings and enjoy running at that time. In the afternoons, you like to read books, while evenings are reserved for working on projects. This year, your personal objective is to maintain good health, be productive, and write a book. The places you frequently visit are the park, library, gym, and office."
+
+    memory = "Today is 2025-01-21.yesterday you met John in the park and discussed your plans for summer vacation. You will have dinner with John at 7 PM at The Cheesecake Factory. You went to a party last night and danced all night."
+
+    one_day_plan = planner.plan_day(env_info=env_info,personal_info=personal_info,memory=memory)
+    for hour_plan in planner.get_daily_plan():
+        print(f"{hour_plan.hour} : {hour_plan.plan}")
+
+    print("=====================================")
+    current_hour = 10
+
+    extra_info = "You received a call from John and he what to meet you at 2 PM to discuss the project."
+
+    planner.update_plan(env_info=env_info,personal_info=personal_info,memory=memory,current_hour=current_hour,extra_info=extra_info)
+
+    for hour_plan in planner.get_daily_plan():
+        print(f"{hour_plan.hour} : {hour_plan.plan}")
+
+
+    print("=====================================")
+
+    current_hour = 14
+    print(planner.get_current_hour_plan(current_hour))
+    current_hour = 20
+    print(planner.get_current_hour_plan(current_hour))
+
+    print("=====================================")
+
+    next_action = planner.next_action(env_info=env_info,personal_info=personal_info,memory=memory,current_hour=10)
+    print(next_action)

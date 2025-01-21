@@ -33,9 +33,9 @@ class Agent(Member):
         Initializes the Agent class.
 
         Args:
-            name (str): The name of the agent.
-            role (str): The role of the agent.
-            description (str, optional): The simple description of the agent. Defaults to None.
+            name (str): The name of the agent. (handoff reference)
+            role (str): The role of the agent. (handoff reference)
+            description (str, optional): The simple description of the agent. Defaults to None. (handoff reference)
             persona (str, optional): The persona of the agent can add more personality,backsotry and skills to the agent. Defaults to None.
             model_client (Union[OpenAI, AsyncOpenAI], optional): The model client for the agent. Defaults to None.
             tools (List["function"], optional): The tools for the agent. Defaults to None.
@@ -78,6 +78,9 @@ class Agent(Member):
         return response
 
     def init_memory(self,working_memory_threshold:int=10,model:str="gpt-4o-mini") -> None:
+        """
+        Initializes the memory for the agent. Currently only supported for OpenAI model client agent.
+        """
         if not self.model_client:
             self.memory = None
             self._logger.log(level="error", message=f"Currently Memory is only supported for OpenAI model client.",color="bold_red")
@@ -107,24 +110,9 @@ class Agent(Member):
         )
         if self.persona:
             instructions += f"## Persona:\n {self.persona}\n\n"
-        
 
-        if use_memory and self.memory:
-            working_memory = self.memory.retrieve_working_memory()
-            fact_memory, event_memory = self.memory.retrieve_long_term_memory(3)
-            memorys = []
-            if fact_memory:
-                memorys.append("### Recent Fact Memory:")
-                memorys.extend([f"- {fact}" for fact in fact_memory])
-            if event_memory:
-                memorys.append("### Recent Event Memory:")
-                memorys.extend([f"- {event}" for event in event_memory])
-            if working_memory:
-                memorys.append("### Working Memory:")
-                memorys.extend([f"- {memory}" for memory in working_memory])
-            memorys_str = "\n".join(memorys)
-            if memorys_str:
-                instructions += f"## Recent Memory:\n{memorys_str}\n\n"
+        if use_memory and self.memory and (memorys_str := self.memory.get_memorys_str()):
+            instructions += f"## Recent Memory:\n{memorys_str}\n\n"
 
         system_message = [{"role": "system", "content": instructions}]
 
