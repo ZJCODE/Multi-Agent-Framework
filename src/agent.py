@@ -57,11 +57,12 @@ class Agent(Member):
         self.tools_schema: List[Dict] = []
         self.tools_map: Dict[str, "function"] = {}
         self._process_tools()
+        self.memory = None
         
     def __str__(self):
         return f"{self.name} is a {self.role}."
     
-    def do(self, message: str,model:str="gpt-4o-mini",use_tools:bool=True,use_memory:bool=False) -> List[Message]:
+    def do(self, message: str,model:str="gpt-4o-mini",use_tools:bool=True,use_memory:bool=True) -> List[Message]:
         if self.dify_access_token:
             self._logger.log(level="info", message=f"Calling Dify agent [{self.name}]",color="bold_green")
             response = self._call_dify_http_agent(self.dify_access_token, message)
@@ -109,23 +110,21 @@ class Agent(Member):
         
 
         if use_memory and self.memory:
-            working_memory = self.memory.working_memory
-            fact_memory, event_memory = self.memory.retrieve_long_term_memory_by_recent(3)
-            memory = ""
+            working_memory = self.memory.retrieve_working_memory()
+            fact_memory, event_memory = self.memory.retrieve_long_term_memory(3)
+            memorys = []
             if fact_memory:
-                memory += "### Recent Fact Memory:\n"
-                for fact in fact_memory:
-                    memory += f"- {fact.fact}\n"
+                memorys.append("### Recent Fact Memory:")
+                memorys.extend([f"- {fact}" for fact in fact_memory])
             if event_memory:
-                memory += "### Recent Event Memory:\n"
-                for event in event_memory:
-                    memory += f"- {event.event}\n"
+                memorys.append("### Recent Event Memory:")
+                memorys.extend([f"- {event}" for event in event_memory])
             if working_memory:
-                memory += "### Working Memory:\n"
-                for mem in working_memory:
-                    memory += f"- {mem}\n"
-
-            instructions += f"## Recent Memory:\n{memory}\n\n"    
+                memorys.append("### Working Memory:")
+                memorys.extend([f"- {memory}" for memory in working_memory])
+            memorys_str = "\n".join(memorys)
+            if memorys_str:
+                instructions += f"## Recent Memory:\n{memorys_str}\n\n"
 
         system_message = [{"role": "system", "content": instructions}]
 

@@ -1,29 +1,17 @@
 from typing import List,Optional
 from pydantic import BaseModel,Field
 
-class EventMemory(BaseModel):
-    """
-    Event Memory: Represents a specific personal experience tied to a time, location, and people involved.
-    """
-    event: str  # The event itself
-    key_words: Optional[List[str]] = Field(default_factory=list)  # Keywords for indexing or searching, default to empty list
-
-class FactMemory(BaseModel):
-    """
-    Fact Memory: Represents general knowledge or facts not tied to a specific time or place.
-    """
-    fact: str  # The fact itself
-    key_words: Optional[List[str]] = Field(default_factory=list)  # Keywords for indexing or searching, default to empty list
-
 class LongTermMemory(BaseModel):
     """
     Long Term Memory: Combines both FactMemory and EventMemory into a unified structure.
     """
-    fact_memory: Optional[List[FactMemory]] = Field(default_factory=list)  # List of fact memories, default to empty list
-    event_memory: Optional[List[EventMemory]] = Field(default_factory=list)  # List of event memories, default to empty list
-
+    fact_memory: Optional[List[str]] = Field(default_factory=list)  # List of fact memories, default to empty list
+    event_memory: Optional[List[str]] = Field(default_factory=list)  # List of event memories, default to empty list
 
 class Memory:
+    """
+    simple memory for demo
+    """
 
     def __init__(self,
                  working_memory_threshold:int=10,
@@ -37,8 +25,8 @@ class Memory:
         self.model = model
         self.verbose = verbose
 
-    def add_working_memory(self, memory: str,date:str=None):
-        self.working_memory.append(memory + f" Memory from {date}" if date else "")
+    def add_working_memory(self, memory: str):
+        self.working_memory.append(memory)
         if len(self.working_memory) > self.working_memory_threshold:
             memory = self.working_memory.pop(0)
             self._extract_long_term_memory(memory) # 后续改造成异步或者在其他线程中执行
@@ -67,42 +55,18 @@ class Memory:
         long_term_memory = completion.choices[0].message.parsed
 
         if long_term_memory.fact_memory:
-            for fact in long_term_memory.fact_memory:
-                fact.key_words = [keyword.lower() for keyword in fact.key_words]
-        if long_term_memory.event_memory:
-            for event in long_term_memory.event_memory:
-                event.key_words = [keyword.lower() for keyword in event.key_words]
-
-        if long_term_memory.fact_memory:
             self.long_term_memory.fact_memory.extend(long_term_memory.fact_memory)
         if long_term_memory.event_memory:
             self.long_term_memory.event_memory.extend(long_term_memory.event_memory)
 
-    def retrieve_long_term_memory_by_recent(self,max_results:int=5):
+    def retrieve_working_memory(self):
+        return self.working_memory
+
+    def retrieve_long_term_memory(self,max_results:int=5):
         fact_memory = []
         event_memory = []
         if len(self.long_term_memory.fact_memory) > 0:
             fact_memory = self.long_term_memory.fact_memory[-max_results:]
         if len(self.long_term_memory.event_memory) > 0:
             event_memory = self.long_term_memory.event_memory[-max_results:]
-        return fact_memory,event_memory
-
-    def retrieve_long_term_memory_by_key_words(self,key_word:str,max_results:int=5):
-        key_word = key_word.lower()
-        fact_memory = []
-        fact_memory_count = 0
-        event_memory = []
-        event_memory_count = 0
-        for fact in self.long_term_memory.fact_memory[::-1]: # reverse to get the latest memory first
-            if key_word in fact.key_words:
-                fact_memory.append(fact)
-                fact_memory_count += 1
-                if fact_memory_count >= max_results:
-                    break
-        for event in self.long_term_memory.event_memory[::-1]:
-            if key_word in event.key_words:
-                event_memory.append(event)
-                event_memory_count += 1
-                if event_memory_count >= max_results:
-                    break
         return fact_memory,event_memory

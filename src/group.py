@@ -114,6 +114,9 @@ class Group:
             return
         observed_speakers = self.observed_speakers.pop(member_name)
         takeaway = self.summary_group_messages(member_name,model="gpt-4o-mini")
+        if self.members_map[member_name].memory:
+            self.members_map[member_name].memory.add_working_memory(takeaway)
+            self._logger.log("info",f"Takeaway for {member_name} added to memory")
         self.env.members = [m for m in self.env.members if m.name != member_name]
         self.members_map.pop(member_name)
         self.member_iterator = itertools.cycle(self.env.members)
@@ -131,8 +134,7 @@ class Group:
 
         return takeaway,observed_speakers
     
-    def summary_group_messages(self,member_name:str,model:str="gpt-4o-mini"):
-
+    def summary_group_messages(self,member_name:str,model:str="gpt-4o-mini")->str:
         messages = [{"role":"system","content":"You are good at summarizing.notice what each member has said and summarize the group messages."}]
 
         prompt = (
@@ -140,7 +142,7 @@ class Group:
             f"{json.dumps(asdict(self.group_messages), indent=4)}\n\n"
             f"### Task\n"
             f"provide a summary of the events in the group from {member_name}'s viewpoint, using {member_name} as the first-person narrator."
-            f"just return the summary in simple sentences."
+            f"just return the summary in simple sentences. Always start with 'On YYYY-MM-DD at HH:MM' if the current time is mentioned in Group Messages."
         )
 
         messages.append({"role":"user","content":prompt})
