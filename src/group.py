@@ -114,9 +114,7 @@ class Group:
             return
         observed_speakers = self.observed_speakers.pop(member_name)
         takeaway = self.summary_group_messages(member_name,model="gpt-4o-mini")
-        if self.members_map[member_name].memory:
-            self.members_map[member_name].memory.add_working_memory(takeaway)
-            self._logger.log("info",f"Takeaway for {member_name} added to memory")
+        self.members_map[member_name].add_working_memory(takeaway)    
         self.env.members = [m for m in self.env.members if m.name != member_name]
         self.members_map.pop(member_name)
         self.member_iterator = itertools.cycle(self.env.members)
@@ -144,6 +142,9 @@ class Group:
             f"provide a summary of the events in the group from {member_name}'s viewpoint, using {member_name} as the first-person narrator."
             f"just return the summary in simple sentences. Always start with 'On YYYY-MM-DD at HH:MM' if the current time is mentioned in Group Messages."
         )
+
+        if self.env.language is not None:
+            prompt += f"\n\n### Response in Language: {self.env.language}\n"
 
         messages.append({"role":"user","content":prompt})
 

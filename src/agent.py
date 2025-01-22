@@ -14,6 +14,7 @@ from .utilities.logger import Logger
 from .utilities.utils import function_to_schema
 from .protocol import Member,Message
 from .memory import Memory
+from .planner import Planner
 import websockets.sync.client
 
 class Agent(Member):
@@ -62,7 +63,7 @@ class Agent(Member):
     def __str__(self):
         return f"{self.name} is a {self.role}."
     
-    def do(self, message: str,model:str="gpt-4o-mini",use_tools:bool=True,use_memory:bool=True) -> List[Message]:
+    def do(self, message: str,model:str="gpt-4o-mini",use_tools:bool=True,use_memory:bool=True,use_planner = True) -> List[Message]:
         if self.dify_access_token:
             self._logger.log(level="info", message=f"Calling Dify agent [{self.name}]",color="bold_green")
             response = self._call_dify_http_agent(self.dify_access_token, message)
@@ -71,13 +72,13 @@ class Agent(Member):
             response = self._call_websocket_agent(message)
         elif isinstance(self.model_client,OpenAI):
             self._logger.log(level="info", message=f"Calling OpenAI agent [{self.name}]",color="bold_green")
-            response = self._call_openai_agent(message,model,use_tools,use_memory)
+            response = self._call_openai_agent(message,model,use_tools,use_memory,use_planner)
         else:
             self._logger.log(level="error", message=f"No model client or Dify access token provided for agent {self.name}.",color="red")
             raise ValueError("No model client or Dify access token provided, please provide one for agent {self.name}.")
         return response
 
-    def init_memory(self,working_memory_threshold:int=10,model:str="gpt-4o-mini") -> None:
+    def init_memory(self,working_memory_threshold:int=10,model:str="gpt-4o-mini",language:str=None) -> None:
         """
         Initializes the memory for the agent. Currently only supported for OpenAI model client agent.
         """
@@ -85,13 +86,43 @@ class Agent(Member):
             self.memory = None
             self._logger.log(level="error", message=f"Currently Memory is only supported for OpenAI model client.",color="bold_red")
             return
-        self.memory = Memory(working_memory_threshold,self.model_client, model, verbose=self.verbose)
+        self.memory = Memory(working_memory_threshold,self.model_client, model, verbose=self.verbose,language=language)
         self._logger.log(level="info", message=f"Memory initialized for agent {self.name}.",color="bold_green")
+
+    def init_planner(self,model:str="gpt-4o-mini",language:str=None) -> None:
+        if not self.model_client:
+            self.planner = None
+            self._logger.log(level="error", message=f"Currently Planner is only supported for OpenAI model client.",color="bold_red")
+            return
+        self.planner = Planner(self.model_client, model, verbose=self.verbose,language=language)
+        self._logger.log(level="info", message=f"Planner initialized for agent {self.name}.",color="bold_green")
+
+    def add_working_memory(self,memory:str) -> None:
+        if not self.memory:
+            return
+        self.memory.add_working_memory(memory)
+
+    def plan_day(self,env_info:str) -> None:
+        if not self.planner:
+            return
+        
+        personal_info = (
+            f"## Name:\n {self.name}\n\n"
+            f"## Role:\n {self.role}\n\n"
+            f"## Description:\n {self.description}\n\n"
+            f"## Persona:\n {self.persona}\n\n" if self.persona else ""
+        )
+
+        memory = self.memory.get_memorys_str() if self.memory else ""
+
+        self.planner.plan_day(env_info = env_info, personal_info = personal_info,memory=memory)
+        self._logger.log(level="info", message=f"Day planned for agent {self.name}.",color="bold_green")
 
     def _call_openai_agent(self,query:str,
                            model:str="gpt-4o-mini",
                            use_tools:bool=True,
-                           use_memory:bool=False
+                           use_memory:bool=False,
+                           use_planner:bool=False
                            ) -> List[Message]:
         """
         This function calls the agent function to get the response.
@@ -107,12 +138,14 @@ class Agent(Member):
             f"## Name:\n {self.name}\n\n"
             f"## Role:\n {self.role}\n\n"
             f"## Description:\n {self.description}\n\n"
+            f"## Persona:\n {self.persona}\n\n" if self.persona else ""
         )
-        if self.persona:
-            instructions += f"## Persona:\n {self.persona}\n\n"
 
         if use_memory and self.memory and (memorys_str := self.memory.get_memorys_str()):
             instructions += f"## Recent Memory:\n{memorys_str}\n\n"
+
+        if use_planner and self.planner and (plan_str := self.planner.get_plan_str()):
+            instructions += f"## Today's Plan:\n{plan_str}\n\n"
 
         system_message = [{"role": "system", "content": instructions}]
 

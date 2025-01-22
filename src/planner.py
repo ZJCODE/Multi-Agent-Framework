@@ -210,6 +210,12 @@ class Planner:
                 return hour_plan.plan
         return "Sleep"
 
+    def get_plan_str(self):
+        plan_str = ""
+        for plan in self.daily_plan:
+            plan_str += f"{plan.start_hour} - {plan.end_hour} : {plan.plan}\n"
+        return plan_str
+
 if __name__ == "__main__":
     
     from dotenv import load_dotenv

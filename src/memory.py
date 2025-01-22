@@ -17,12 +17,14 @@ class Memory:
                  working_memory_threshold:int=10,
                  model_client=None,
                  model:str="gpt-4o-mini",
+                 language:str=None,
                  verbose:bool=False):
         self.working_memory_threshold = working_memory_threshold
         self.working_memory:List[str] = []
         self.long_term_memory:LongTermMemory = LongTermMemory(fact_memory=[],event_memory=[])
         self.model_client = model_client
         self.model = model
+        self.language = language
         self.verbose = verbose
 
     def add_working_memory(self, memory: str):
@@ -42,6 +44,9 @@ class Memory:
                 "For every event memory,ensure that each event memory stands alone, allowing you to remember the complete event without needing additional context. Format like 'On January 21, 2025, at 3 PM, I met John in the park, where we discussed our plans for summer vacation, and afterward, we headed to the ice cream shop.' or 'On January 22, 2025, this morning, John invited me to have dinner with him tomorrow night at 7 PM at The Cheesecake Factory.' or 'On January 23, 2025, I went to the party at 7 PM, where I met my friend, Alice, and we danced all night.'.\n"
                 "For every fact memory, make sure it is a general knowledge or fact like Nature Facts,Personal Facts, Common Knowledge, or Scientific Facts. Format like 'The sky is blue.' or 'John is my friend.' or 'My favorite color is green.'.  \n"
             )
+        
+        if self.language:
+            prompt += f"\n\n### Response in Language: {self.language}"
 
         messages = [{"role":"system","content":system_message}]
         messages.append({"role":"user","content":prompt})
