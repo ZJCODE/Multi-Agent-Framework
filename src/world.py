@@ -28,3 +28,7 @@ class World:
         # do something in group
         # dissmis group
         pass
+
+    def start_conversation_or_not()->bool:
+        # start a conversation
+        pass

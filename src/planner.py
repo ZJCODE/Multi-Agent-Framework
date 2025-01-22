@@ -7,14 +7,21 @@ class Plan(BaseModel):
     plan: str 
 class OneDayPlan(BaseModel):
     plans: List[Plan]
-
+class MinutePlan(BaseModel):
+    start_minute: int
+    end_minute: int
+    plan: str
+class OneHourPlan(BaseModel):
+    plans: List[MinutePlan]
 class Planner:
     def __init__(self,
                  model_client=None,
                  model:str="gpt-4o-mini",
+                 language:str=None,
                  verbose:bool=False):
         self.model_client = model_client
         self.model = model
+        self.language = language
         self.verbose = verbose 
         self.daily_plan = []
 
@@ -36,7 +43,7 @@ class Planner:
             "Ensure the plan:\n"
             "- Reflects personal preferences, goals, and relevant events from memory.\n"
             "- Includes a specific activity for each hour.\n"
-            "Ensure the updated plan is practical, well-balanced, and aligned with the provided information."
+            "Ensure the updated plan is practical, well-balanced, and aligned with the provided information and every hour is covered from 0 to 24."
             "Plan examples: \n"
             "0:00 - 7:00: Sleep\n"
             "7:00 - 8:00: Morning Routine\n"
@@ -47,6 +54,9 @@ class Planner:
             "22:00 - 23:00: Prepare for Bed\n"
             "plans for 24 hours: "
         )
+
+        if self.language:
+            prompt += f"\n\n### Response in Language: {self.language}"
 
         messages = [{"role":"system","content":system_message}]
         messages.append({"role":"user","content":prompt})
@@ -61,6 +71,51 @@ class Planner:
         one_day_plan = completion.choices[0].message.parsed
 
         self.daily_plan = one_day_plan.plans
+
+    def plan_hour(self, env_info: str,personal_info: str,memory: str,current_hour: int):
+        current_hour_plan = self.get_current_hour_plan(current_hour)
+        # plan the activity for the current hour based on the environment information, personal information, and memory
+        system_message = "You are skilled at planning the activity for the current hour based on environmental information, personal information, memory, and current hour plan. decompose the hour into minutes and plan the activity for each minute."
+
+        prompt = (
+            "### Environment Information:\n"
+            f"```{env_info}```\n"
+            "### Personal Information:\n"
+            f"```{personal_info}```\n"
+            "### Memory:\n"
+            f"```{memory}```\n"
+            "### Current Hour:\n"
+            f"```{current_hour}```\n\n"
+            "### Current Plan for the Hour:\n"
+            f"```{current_hour_plan}```\n\n"
+            "Instructions:\n"
+            "Use the provided information to create a detailed plan for the current hour.\n"
+            "Divide the hour into smaller time blocks (e.g., 0-10, 10-40, 40-60).\n"
+            "Assign specific activities to each block, ensuring alignment with the current hour plan and context.\n"
+            "Example Format:\n"
+            "0-20: Prepare breakfast\n"
+            "20-40: Eat breakfast\n"
+            "40-60: Clean up\n"
+            "plans for 60 minutes: "
+        )
+
+        if self.language:
+            prompt += f"\n\n### Response in Language: {self.language}"
+
+        messages = [{"role":"system","content":system_message}]
+        messages.append({"role":"user","content":prompt})
+
+        completion = self.model_client.beta.chat.completions.parse(
+            model=self.model,
+            messages=messages,
+            temperature=0.0,
+            response_format=OneHourPlan
+        )
+
+        one_hour_plan = completion.choices[0].message.parsed
+
+        return one_hour_plan.plans
+
 
     def update_plan(self, env_info: str,personal_info: str,memory: str,current_hour: int,extra_info: str):
         # update the plan after the current hour based on the extra information
@@ -82,9 +137,13 @@ class Planner:
             "- Reflects personal preferences, goals, and relevant events from memory.\n"
             "- Reassigns the activity for the current hour and adjusts activities for the following hours.\n"
             "- Includes a specific activity for each hour.\n"
+            "- Only update the plan when necessary."
             "Ensure the updated plan is practical, well-balanced, and aligned with the provided information."
             "plans for 24 hours: "
         )
+
+        if self.language:
+            prompt += f"\n\n### Response in Language: {self.language}"
 
         messages = [{"role":"system","content":system_message}]
         messages.append({"role":"user","content":prompt})
@@ -112,12 +171,16 @@ class Planner:
             f"```{memory}```\n"
             "### Current Hour:\n"
             f"```{current_hour}```\n"
-            "### Current Hour Plan:\n"
+            "### Current Plan for the Hour:\n"
             f"```{current_hour_plan}```\n\n"
             "Based on the environment information, personal information, memory, and current hour plan, determine the next action. "
             "action can be go to somewhere, do something, or meet someone etc."
             "Ensure the next action is aligned with the current hour plan and the provided information."
+            "next action: "
         )
+
+        if self.language:
+            prompt += f"\n\n### Response in Language: {self.language}"
 
         messages = [{"role":"system","content":system_message}]
         messages.append({"role":"user","content":prompt})
@@ -131,17 +194,21 @@ class Planner:
         
         return response.choices[0].message.content
         
-
     def get_daily_plan(self):
         return self.daily_plan
     
+    def get_future_plan(self, current_hour: int):
+        future_plan = []
+        for hour_plan in self.daily_plan:
+            if current_hour <= hour_plan.end_hour:
+                future_plan.append(hour_plan)
+        return future_plan
+
     def get_current_hour_plan(self,current_hour:int):
         for hour_plan in self.daily_plan:
             if current_hour >= hour_plan.start_hour and current_hour < hour_plan.end_hour:
                 return hour_plan.plan
         return "Sleep"
-    
-    
 
 if __name__ == "__main__":
     
@@ -165,7 +232,7 @@ if __name__ == "__main__":
     for plan in planner.get_daily_plan():
         print(f"{plan.start_hour} - {plan.end_hour} : {plan.plan}")
 
-    print("=====================================")
+    print("====================================================")
     current_hour = 10
 
     extra_info = "You received a call from John and he what to reschedule the meeting to 4 PM."
@@ -175,15 +242,25 @@ if __name__ == "__main__":
     for plan in planner.get_daily_plan():
         print(f"{plan.start_hour} - {plan.end_hour} : {plan.plan}")
 
+    print("====================================================")
 
-    print("=====================================")
+    extra_info = "You suddenly want to eat some ice cream."
 
-    current_hour = 14
-    print(planner.get_current_hour_plan(current_hour))
-    current_hour = 20
-    print(planner.get_current_hour_plan(current_hour))
+    planner.update_plan(env_info=env_info,personal_info=personal_info,memory=memory,current_hour=current_hour,extra_info=extra_info)
 
-    print("=====================================")
+    for plan in planner.get_daily_plan():
+        print(f"{plan.start_hour} - {plan.end_hour} : {plan.plan}")
 
-    next_action = planner.next_action(env_info=env_info,personal_info=personal_info,memory=memory,current_hour=1)
+
+    print("====================================================")
+
+    current_hour_plan = planner.plan_hour(env_info=env_info,personal_info=personal_info,memory=memory,current_hour=14)
+
+    for plan in current_hour_plan:
+        print(f"{plan.start_minute} - {plan.end_minute} : {plan.plan}")
+
+
+    print("====================================================")
+
+    next_action = planner.next_action(env_info=env_info,personal_info=personal_info,memory=memory,current_hour=14)
     print(next_action)
