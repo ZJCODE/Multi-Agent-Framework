@@ -19,6 +19,11 @@ class Planner:
         self.daily_plan = []
 
     def plan_day(self, env_info: str,personal_info: str,memory: str):
+        """
+        env_info can be the time location, weather, and events happening in the environment.
+        personal_info can be the user's name, occupation, preferences, goals, and frequent locations.
+        memory can be the user's recent activities, conversations, and events or observations.
+        """
         system_message = "You are skilled at planning daily activities based on environmental information, personal information, and memory."
         prompt = (
             "### Environment Information:\n"
@@ -135,6 +140,8 @@ class Planner:
             if current_hour >= hour_plan.start_hour and current_hour < hour_plan.end_hour:
                 return hour_plan.plan
         return "Sleep"
+    
+    
 
 if __name__ == "__main__":
     
@@ -148,11 +155,11 @@ if __name__ == "__main__":
 
     planner = Planner(model_client=model_client,model="gpt-4o",verbose=True)
     
-    env_info = "This is year 2100,the world is a futuristic place with advanced technology. Today's weather is sunny and warm."
+    env_info = "It's 2100-01-03, the weather is sunny, and there are no major events scheduled."
 
     personal_info = "Your name is Alice. You hold the position of a manager. You prefer mornings and enjoy running at that time. In the afternoons, you like to read books, while evenings are reserved for working on projects. This year, your personal objective is to maintain good health, be productive, and write a book. The places you frequently visit are the park, library, gym, and office."
 
-    memory = "Today is 2025-01-21.yesterday you met John in the park and discussed your plans for summer vacation. You will have dinner with John at 7 PM at The Cheesecake Factory. You went to a party last night and danced all night."
+    memory = "On 2100-01-01, you had a meeting with John at 2 PM to discuss the project. You went for a run in the morning and read a book in the afternoon. In the evening, you worked on the project until 10 PM. \n On 2100-01-02, you received a call from John and he wants to meet you at 2 PM to discuss the project tomorrow."
 
     one_day_plan = planner.plan_day(env_info=env_info,personal_info=personal_info,memory=memory)
     for plan in planner.get_daily_plan():
@@ -161,7 +168,7 @@ if __name__ == "__main__":
     print("=====================================")
     current_hour = 10
 
-    extra_info = "You received a call from John and he what to meet you at 2 PM to discuss the project."
+    extra_info = "You received a call from John and he what to reschedule the meeting to 4 PM."
 
     planner.update_plan(env_info=env_info,personal_info=personal_info,memory=memory,current_hour=current_hour,extra_info=extra_info)
 
