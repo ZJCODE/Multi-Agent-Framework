@@ -1,11 +1,12 @@
 from typing import List
 from pydantic import BaseModel,Field
 
-class HourPlan(BaseModel):
-    hour: int
+class Plan(BaseModel):
+    start_hour: int
+    end_hour: int
     plan: str 
 class OneDayPlan(BaseModel):
-    plans: List[HourPlan]
+    plans: List[Plan]
 
 class Planner:
     def __init__(self,
@@ -29,8 +30,16 @@ class Planner:
             "Based on the environment information, personal information, and memory, create a detailed daily plan for the next 24 hours. "
             "Ensure the plan:\n"
             "- Reflects personal preferences, goals, and relevant events from memory.\n"
-            "- Includes a specific activity for each hour from 12 AM to 11 PM.\n"
+            "- Includes a specific activity for each hour.\n"
             "Ensure the updated plan is practical, well-balanced, and aligned with the provided information."
+            "Plan examples: \n"
+            "0:00 - 7:00: Sleep\n"
+            "7:00 - 8:00: Morning Routine\n"
+            "8:00 - 9:00: Breakfast\n"
+            "..."
+            "14:00 - 16:00: Work on Project\n"
+            "21:00 - 22:00: Reading\n"
+            "22:00 - 23:00: Prepare for Bed\n"
             "plans for 24 hours: "
         )
 
@@ -67,7 +76,7 @@ class Planner:
             "Update the daily plan based on the current hour and extra information. Ensure the updated plan:\n"
             "- Reflects personal preferences, goals, and relevant events from memory.\n"
             "- Reassigns the activity for the current hour and adjusts activities for the following hours.\n"
-            "- Includes a specific activity for each hour from 12 AM to 11 PM.\n"
+            "- Includes a specific activity for each hour.\n"
             "Ensure the updated plan is practical, well-balanced, and aligned with the provided information."
             "plans for 24 hours: "
         )
@@ -123,9 +132,9 @@ class Planner:
     
     def get_current_hour_plan(self,current_hour:int):
         for hour_plan in self.daily_plan:
-            if hour_plan.hour == current_hour:
-                return f"hour:{hour_plan.hour} -> {hour_plan.plan}"
-        return f"hour:{current_hour} -> Sleep."
+            if current_hour >= hour_plan.start_hour and current_hour < hour_plan.end_hour:
+                return hour_plan.plan
+        return "Sleep"
 
 if __name__ == "__main__":
     
@@ -146,8 +155,8 @@ if __name__ == "__main__":
     memory = "Today is 2025-01-21.yesterday you met John in the park and discussed your plans for summer vacation. You will have dinner with John at 7 PM at The Cheesecake Factory. You went to a party last night and danced all night."
 
     one_day_plan = planner.plan_day(env_info=env_info,personal_info=personal_info,memory=memory)
-    for hour_plan in planner.get_daily_plan():
-        print(f"{hour_plan.hour} : {hour_plan.plan}")
+    for plan in planner.get_daily_plan():
+        print(f"{plan.start_hour} - {plan.end_hour} : {plan.plan}")
 
     print("=====================================")
     current_hour = 10
@@ -156,8 +165,8 @@ if __name__ == "__main__":
 
     planner.update_plan(env_info=env_info,personal_info=personal_info,memory=memory,current_hour=current_hour,extra_info=extra_info)
 
-    for hour_plan in planner.get_daily_plan():
-        print(f"{hour_plan.hour} : {hour_plan.plan}")
+    for plan in planner.get_daily_plan():
+        print(f"{plan.start_hour} - {plan.end_hour} : {plan.plan}")
 
 
     print("=====================================")
@@ -169,5 +178,5 @@ if __name__ == "__main__":
 
     print("=====================================")
 
-    next_action = planner.next_action(env_info=env_info,personal_info=personal_info,memory=memory,current_hour=10)
+    next_action = planner.next_action(env_info=env_info,personal_info=personal_info,memory=memory,current_hour=1)
     print(next_action)

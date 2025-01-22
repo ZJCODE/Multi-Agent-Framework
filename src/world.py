@@ -17,7 +17,9 @@ class World:
 
     def __str__(self):
         return "World is a place where agents interact."
-    
+
+    # time system
+    # when to start a dialogue (observation design)
 
     def meet():
         # generate environment, can include observation, description, members ...
