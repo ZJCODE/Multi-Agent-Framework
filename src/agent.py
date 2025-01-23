@@ -59,11 +59,15 @@ class Agent(Member):
         self.tools_map: Dict[str, "function"] = {}
         self._process_tools()
         self.memory = None
+        self.planner = None
         
     def __str__(self):
         return f"{self.name} is a {self.role}."
     
-    def do(self, message: str,model:str="gpt-4o-mini",use_tools:bool=True,use_memory:bool=True,use_planner = True) -> List[Message]:
+    def do(self, 
+           message: str,model:str="gpt-4o-mini",
+           use_tools:bool=True,use_memory:bool=True,use_planner:bool=True,
+           keep_memory:bool=True) -> List[Message]:
         if self.dify_access_token:
             self._logger.log(level="info", message=f"Calling Dify agent [{self.name}]",color="bold_green")
             response = self._call_dify_http_agent(self.dify_access_token, message)
@@ -72,7 +76,7 @@ class Agent(Member):
             response = self._call_websocket_agent(message)
         elif isinstance(self.model_client,OpenAI):
             self._logger.log(level="info", message=f"Calling OpenAI agent [{self.name}]",color="bold_green")
-            response = self._call_openai_agent(message,model,use_tools,use_memory,use_planner)
+            response = self._call_openai_agent(message,model,use_tools,use_memory,use_planner,keep_memory)
         else:
             self._logger.log(level="error", message=f"No model client or Dify access token provided for agent {self.name}.",color="red")
             raise ValueError("No model client or Dify access token provided, please provide one for agent {self.name}.")
@@ -102,33 +106,12 @@ class Agent(Member):
             return
         self.memory.add_working_memory(memory)
 
-    def do_plan(self,env_info:str,current_hour:int=None) -> None:
-        if not self.planner:
-            return
-        
-        personal_info = (
-            f"## Name:\n {self.name}\n\n"
-            f"## Role:\n {self.role}\n\n"
-            f"## Description:\n {self.description}\n\n"
-            f"## Persona:\n {self.persona}\n\n" if self.persona else ""
-        )
-
-        memory = self.memory.get_memorys_str() if self.memory else ""
-        if not current_hour:
-            self.planner.plan_day(env_info = env_info, personal_info = personal_info,memory=memory)
-            self._logger.log(level="info", message=f"Day planned for agent {self.name}.",color="bold_green")
-        else:
-            if self.planner.get_daily_plan():
-                self.planner.plan_hour(env_info = env_info, personal_info = personal_info,memory=memory,current_hour=current_hour)
-                self._logger.log(level="info", message=f"Hour {current_hour} planned for agent {self.name}.",color="bold_green")
-            else:
-                self._logger.warn(level="info", message=f"Befor planning the hour, plan the day for agent {self.name}.",color="bold_yellow")
-
     def _call_openai_agent(self,query:str,
                            model:str="gpt-4o-mini",
                            use_tools:bool=True,
                            use_memory:bool=False,
-                           use_planner:bool=False
+                           use_planner:bool=False,
+                           keep_memory:bool=False
                            ) -> List[Message]:
         """
         This function calls the agent function to get the response.
@@ -151,10 +134,12 @@ class Agent(Member):
 
         # self._logger.log(level="info", message=f"instructions:\n{instructions}",color="bold_green")
 
+        original_query = query
+
         if use_memory and self.memory and (memorys_str := self.memory.get_memorys_str()):
             query =  f"### Your Recent Memory:\n```{memorys_str}```\n\n" + query
 
-        if use_planner and self.planner and (plan_str := self.planner.get_plan_str()):
+        if use_planner and self.planner and (plan_str := self.planner.get_day_plan_str()):
             query = f"### Your Today's Plan:\n```{plan_str}```\n\n" + query
 
         messages = system_message + [{"role": "user", "content": query}]
@@ -171,6 +156,8 @@ class Agent(Member):
 
         # If there are no tool calls, return the message [Most Common Case]
         if not response_message.tool_calls:
+            if keep_memory and self.memory:
+                self.memory.add_working_memory(f"user's query: {original_query} \n\n you's response: {response_message.content}")
             res = [Message(sender=self.name, action="talk", result=response_message.content)]
             return res
         
@@ -198,6 +185,8 @@ class Agent(Member):
             )
         
         response_message = response.choices[0].message
+        if keep_memory and self.memory:
+            self.memory.add_working_memory(f"user's query: {original_query} \n\n you's response: {response_message.content}")
         res.append(Message(sender=self.name, action="talk", result=response_message.content))
 
         return res

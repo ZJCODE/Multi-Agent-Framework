@@ -23,8 +23,12 @@ class Planner:
         self.model = model
         self.language = language
         self.verbose = verbose 
+        self.task_plan = []
         self.daily_plan = []
         self.one_hour_plan = []
+
+    def plan_task(self, env_info: str,personal_info: str,memory: str,task:str):
+        pass
 
     def plan_day(self, env_info: str,personal_info: str,memory: str):
         """
@@ -118,7 +122,7 @@ class Planner:
         self.one_hour_plan = one_hour_plan.plans
 
 
-    def update_plan(self, env_info: str,personal_info: str,memory: str,current_hour: int,extra_info: str):
+    def update_day_plan(self, env_info: str,personal_info: str,memory: str,current_hour: int,extra_info: str):
         # update the plan after the current hour based on the extra information
         system_message = "You are skilled at updating the daily plan based on environmental information, personal information, memory, and current hour."
         prompt = (
@@ -159,46 +163,11 @@ class Planner:
         one_day_plan = completion.choices[0].message.parsed
 
         self.daily_plan = one_day_plan.plans
-
-    def next_action(self,env_info: str,personal_info: str,memory: str,current_hour: int):
-        current_hour_plan = self.get_current_hour_plan(current_hour)
-        system_message = "You are skilled at determining the next action based on the current hour and the daily plan."
-        prompt = (
-            "### Environment Information:\n"
-            f"```{env_info}```\n"
-            "### Personal Information:\n"
-            f"```{personal_info}```\n"
-            "### Memory:\n"
-            f"```{memory}```\n"
-            "### Current Hour:\n"
-            f"```{current_hour}```\n"
-            "### Current Plan for the Hour:\n"
-            f"```{current_hour_plan}```\n\n"
-            "Based on the environment information, personal information, memory, and current hour plan, determine the next action. "
-            "action can be go to somewhere, do something, or meet someone etc."
-            "Ensure the next action is aligned with the current hour plan and the provided information."
-            "next action: "
-        )
-
-        if self.language:
-            prompt += f"\n\n### Response in Language: {self.language}"
-
-        messages = [{"role":"system","content":system_message}]
-        messages.append({"role":"user","content":prompt})
-
-        response = self.model_client.chat.completions.create(
-                        model=self.model,
-                        messages=messages,
-                        tools=None,
-                        tool_choice=None,
-                    )
-        
-        return response.choices[0].message.content
         
     def get_daily_plan(self):
         return self.daily_plan
     
-    def get_future_plan(self, current_hour: int):
+    def get_daily_future_plan(self, current_hour: int):
         future_plan = []
         for hour_plan in self.daily_plan:
             if current_hour <= hour_plan.end_hour:
@@ -211,7 +180,7 @@ class Planner:
                 return hour_plan.plan
         return "Sleep"
 
-    def get_plan_str(self):
+    def get_day_plan_str(self):
         plan_str = ""
         for plan in self.daily_plan:
             plan_str += f"{plan.start_hour} - {plan.end_hour} : {plan.plan}\n"
@@ -266,8 +235,3 @@ if __name__ == "__main__":
     for plan in current_hour_plan:
         print(f"{plan.start_minute} - {plan.end_minute} : {plan.plan}")
 
-
-    print("====================================================")
-
-    next_action = planner.next_action(env_info=env_info,personal_info=personal_info,memory=memory,current_hour=14)
-    print(next_action)

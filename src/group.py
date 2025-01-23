@@ -260,7 +260,7 @@ class Group:
         else:
             self.handoff(next_speaker_select_mode=next_speaker_select_mode,model=model,include_current=include_current)
         message_send = self._build_send_message(cut_off=message_cut_off,send_to=self.current_agent)
-        response = self.members_map[self.current_agent].do(message_send,model)
+        response = self.members_map[self.current_agent].do(message = message_send,model = model,keep_memory=False)
         self.update_group_messages(response)
         for r in response:
             self._logger.log("info",f"Agent {self.current_agent} response:\n\n{r.result}",color="bold_purple")
@@ -536,7 +536,7 @@ class Group:
             self._logger.log("info",f"===> Step {step} for {t.agent_name} \n\ndo task: {t.task} \n\nreceive information from: {t.receive_information_from}")
             self.set_current_agent(t.agent_name)
             message_send = self._build_auto_task_message(task,t,cut_off=3,model=model)
-            response = self.members_map[t.agent_name].do(message_send,model)
+            response = self.members_map[t.agent_name].do(message = message_send,model = model,keep_memory=False)
             self.update_group_messages(response)
             for r in response:
                 self._logger.log("info",f"Agent {self.current_agent} response:\n\n{r.result}",color="bold_purple")
@@ -548,7 +548,7 @@ class Group:
                     self._logger.log("info",f"===> Extra Task {index+1} for {et.agent_name} \n\ndo task: {et.task} \n\nreceive information from: {et.receive_information_from}")
                     self.set_current_agent(et.agent_name)
                     message_send = self._build_auto_task_message(task,et,cut_off=3,model=model)
-                    response = self.members_map[et.agent_name].do(message_send,model)
+                    response = self.members_map[et.agent_name].do(message = message_send,model = model,keep_memory=False)
                     self.update_group_messages(response)
                     for r in response:
                         self._logger.log("info",f"Agent {self.current_agent} response(extra task):\n\n{r.result}",color="bold_purple")

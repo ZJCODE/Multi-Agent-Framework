@@ -16,12 +16,12 @@ Try it: [Simple demo for multi-agent](https://agentstalk.streamlit.app/)
 
 ## Tutorial
 
+- [Simpel demo for single agent](examples/000%20agent.ipynb)
 - [How to build Group of Agents](examples/001%20group.ipynb)
 - [Chat with Group of Agents](examples/002%20chat.ipynb)
 - [Internal dialogue within Group of Agents](examples/003%20dialogue.ipynb)
 - [Task for Group of Agents](examples/004%20task.ipynb)
 - [Low Level API for Group Discussion with Human in the Loop](examples/999%20low-level.ipynb)
-
 
 ## Usage
 
@@ -82,13 +82,26 @@ def web_search(qury:str)->str:
     # do web search
     return "web search result"
 
-artist = Agent(name="researcher",
+researcher = Agent(name="researcher",
         role="Researcher",
         description="Transfer to me if you need help with research.",
         persona = "You are a professional researcher who can do web search to conduct research on a wide range of topics. You have a deep understanding of how to find and evaluate information from a variety of sources. You are known for your ability to quickly find relevant information and present it in a clear and concise manner.",
         tools=[web_search],
         model_client=model_client,
         verbose=True)
+```
+
+or equip with memory like this
+
+```python
+telos = Agent(name="telos",
+              role="Assistant",
+              description="Transfer to me if you need help with general questions.",
+              persona="You are a general assistant who can help with a wide range of questions. You have a deep understanding of a variety of topics and can provide information and assistance on a wide range of subjects. You are known for your ability to quickly find answers to questions and provide helpful information in a clear and concise manner.",
+              model_client=model_client,
+              verbose=True)
+
+telos.init_memory(working_memory_threshold=3)
 ```
 
 or connect a third-party agent that was created at Dify like this.
