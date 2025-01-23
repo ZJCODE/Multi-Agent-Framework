@@ -25,6 +25,7 @@ class Agent(Member):
             description: str = None,
             persona: str = None, # context and personality of the agent more detailed than description
             model_client: Union[OpenAI, AsyncOpenAI] = None,
+            temperature: float = None, # Temperature for openai model
             tools: List["function"] = None, # List of Python Functions for openai model
             dify_access_token: str = None,
             websocket_url: str = None,
@@ -39,6 +40,7 @@ class Agent(Member):
             description (str, optional): The simple description of the agent. Defaults to None. (handoff reference)
             persona (str, optional): The persona of the agent can add more personality,backsotry and skills to the agent. Defaults to None.
             model_client (Union[OpenAI, AsyncOpenAI], optional): The model client for the agent. Defaults to None.
+            temperature (float, optional): The temperature for the agent. Defaults to 0.5.
             tools (List["function"], optional): The tools for the agent. Defaults to None.
             dify_access_token (str, optional): The Dify access token for the agent. Defaults to None.
             websocket_url (str, optional): The websocket URL for the agent. Defaults to None.
@@ -49,6 +51,7 @@ class Agent(Member):
         self._logger = Logger(verbose=verbose)
         self.persona = persona
         self.model_client = model_client
+        self.temperature = temperature
         self.tools = tools
         self.dify_access_token = dify_access_token
         self.websocket_url = websocket_url
@@ -150,6 +153,7 @@ class Agent(Member):
                         messages=messages,
                         tools=tools,
                         tool_choice=None,
+                        temperature=self.temperature,
                     )
         
         response_message = response.choices[0].message
@@ -182,6 +186,7 @@ class Agent(Member):
                 messages=messages,
                 tools=None,
                 tool_choice=None,
+                temperature=0.0,
             )
         
         response_message = response.choices[0].message
