@@ -24,6 +24,7 @@ class Planner:
         self.language = language
         self.verbose = verbose 
         self.daily_plan = []
+        self.one_hour_plan = []
 
     def plan_day(self, env_info: str,personal_info: str,memory: str):
         """
@@ -114,7 +115,7 @@ class Planner:
 
         one_hour_plan = completion.choices[0].message.parsed
 
-        return one_hour_plan.plans
+        self.one_hour_plan = one_hour_plan.plans
 
 
     def update_plan(self, env_info: str,personal_info: str,memory: str,current_hour: int,extra_info: str):

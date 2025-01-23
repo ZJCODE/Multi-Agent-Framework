@@ -114,7 +114,7 @@ class Group:
             return
         observed_speakers = self.observed_speakers.pop(member_name)
         takeaway = self.summary_group_messages(member_name,model="gpt-4o-mini")
-        self.members_map[member_name].add_working_memory(takeaway)    
+        self.members_map[member_name].add_memory(takeaway)    
         self.env.members = [m for m in self.env.members if m.name != member_name]
         self.members_map.pop(member_name)
         self.member_iterator = itertools.cycle(self.env.members)

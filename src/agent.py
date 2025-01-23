@@ -97,12 +97,12 @@ class Agent(Member):
         self.planner = Planner(self.model_client, model, verbose=self.verbose,language=language)
         self._logger.log(level="info", message=f"Planner initialized for agent {self.name}.",color="bold_green")
 
-    def add_working_memory(self,memory:str) -> None:
+    def add_memory(self,memory:str) -> None:
         if not self.memory:
             return
         self.memory.add_working_memory(memory)
 
-    def plan_day(self,env_info:str) -> None:
+    def do_plan(self,env_info:str,current_hour:int=None) -> None:
         if not self.planner:
             return
         
@@ -114,9 +114,15 @@ class Agent(Member):
         )
 
         memory = self.memory.get_memorys_str() if self.memory else ""
-
-        self.planner.plan_day(env_info = env_info, personal_info = personal_info,memory=memory)
-        self._logger.log(level="info", message=f"Day planned for agent {self.name}.",color="bold_green")
+        if not current_hour:
+            self.planner.plan_day(env_info = env_info, personal_info = personal_info,memory=memory)
+            self._logger.log(level="info", message=f"Day planned for agent {self.name}.",color="bold_green")
+        else:
+            if self.planner.get_daily_plan():
+                self.planner.plan_hour(env_info = env_info, personal_info = personal_info,memory=memory,current_hour=current_hour)
+                self._logger.log(level="info", message=f"Hour {current_hour} planned for agent {self.name}.",color="bold_green")
+            else:
+                self._logger.warn(level="info", message=f"Befor planning the hour, plan the day for agent {self.name}.",color="bold_yellow")
 
     def _call_openai_agent(self,query:str,
                            model:str="gpt-4o-mini",
@@ -135,21 +141,21 @@ class Agent(Member):
         """
 
         instructions =(
-            f"## Name:\n {self.name}\n\n"
-            f"## Role:\n {self.role}\n\n"
+            f"## Your Name is :\n {self.name}\n\n"
+            f"## Your Role is :\n {self.role}\n\n"
             f"## Description:\n {self.description}\n\n"
-            f"## Persona:\n {self.persona}\n\n" if self.persona else ""
+            f"## Your Persona is :\n {self.persona}\n\n" if self.persona else ""
         )
-
-        if use_memory and self.memory and (memorys_str := self.memory.get_memorys_str()):
-            instructions += f"## Recent Memory:\n{memorys_str}\n\n"
-
-        if use_planner and self.planner and (plan_str := self.planner.get_plan_str()):
-            instructions += f"## Today's Plan:\n{plan_str}\n\n"
 
         system_message = [{"role": "system", "content": instructions}]
 
         # self._logger.log(level="info", message=f"instructions:\n{instructions}",color="bold_green")
+
+        if use_memory and self.memory and (memorys_str := self.memory.get_memorys_str()):
+            query =  f"### Your Recent Memory:\n```{memorys_str}```\n\n" + query
+
+        if use_planner and self.planner and (plan_str := self.planner.get_plan_str()):
+            query = f"### Your Today's Plan:\n```{plan_str}```\n\n" + query
 
         messages = system_message + [{"role": "user", "content": query}]
 
