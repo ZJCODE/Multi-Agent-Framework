@@ -41,8 +41,9 @@ class Memory:
                 "Extract and categorize memories into Fact Memory and Event Memory: \n"
                 "### Memory:  \n"
                 f"```{memory}```"
-                "For every event memory,ensure that each event memory stands alone, allowing you to remember the complete event without needing additional context. Format like 'On January 21, 2025, at 3 PM, I met John in the park, where we discussed our plans for summer vacation, and afterward, we headed to the ice cream shop.' or 'On January 22, 2025, this morning, John invited me to have dinner with him tomorrow night at 7 PM at The Cheesecake Factory.' or 'On January 23, 2025, I went to the party at 7 PM, where I met my friend, Alice, and we danced all night.'.\n"
+                "For every event memory,ensure that each event memory stands alone, allowing you to remember the complete event without needing additional context. Format like 'On January 21, 2025, at 3 PM, I met John in the park, where we discussed our plans for summer vacation, and afterward, we headed to the ice cream shop.' or 'On January 22, 2025, this morning, John invited me to have dinner with him tomorrow night at 7 PM at The Cheesecake Factory.' or 'On January 23, 2025, I went to the party at 7 PM, where I met my friend, Alice, and we danced all night.'.  \n"
                 "For every fact memory, make sure it is a general knowledge or fact like Nature Facts,Personal Facts, Common Knowledge, or Scientific Facts. Format like 'The sky is blue.' or 'John is my friend.' or 'My favorite color is green.'.  \n"
+                "Every Extracted Memory should only include information that is explicitly found within the memory; refrain from creating any details like time or place unless they are clearly mentioned in the memory.  \n"
             )
         
         if self.language:
@@ -76,7 +77,8 @@ class Memory:
             event_memory = self.long_term_memory.event_memory[-max_results:]
         return fact_memory,event_memory
 
-    def get_memorys_str(self,max_results:int=5):
+    def get_memorys_str(self,query=None,max_results:int=5):
+        # TODO:Retrieve memorys based on query
         working_memory = self.retrieve_working_memory()
         fact_memory, event_memory = self.retrieve_long_term_memory(max_results)
         memorys = []

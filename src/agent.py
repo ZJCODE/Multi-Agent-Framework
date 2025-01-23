@@ -136,7 +136,7 @@ class Agent(Member):
 
         original_query = query
 
-        if use_memory and self.memory and (memorys_str := self.memory.get_memorys_str()):
+        if use_memory and self.memory and (memorys_str := self.memory.get_memorys_str(original_query)):
             query =  f"### Your Recent Memory:\n```{memorys_str}```\n\n" + query
 
         if use_planner and self.planner and (plan_str := self.planner.get_day_plan_str()):
