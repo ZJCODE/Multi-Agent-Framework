@@ -85,7 +85,7 @@ class Agent(Member):
             raise ValueError("No model client or Dify access token provided, please provide one for agent {self.name}.")
         return response
 
-    def init_memory(self,working_memory_threshold:int=10,model:str="gpt-4o-mini",language:str=None) -> None:
+    def init_memory(self,working_memory_threshold:int=10,semantic_memory_db_path ="temp",model:str="gpt-4o-mini",language:str=None) -> None:
         """
         Initializes the memory for the agent. Currently only supported for OpenAI model client agent.
         """
@@ -93,7 +93,7 @@ class Agent(Member):
             self.memory = None
             self._logger.log(level="error", message=f"Currently Memory is only supported for OpenAI model client.",color="bold_red")
             return
-        self.memory = Memory(working_memory_threshold,self.model_client, model, verbose=self.verbose,language=language)
+        self.memory = Memory(working_memory_threshold,self.model_client, model, verbose=self.verbose,db_path=semantic_memory_db_path,language=language)
         self._logger.log(level="info", message=f"Memory initialized for agent {self.name}.",color="bold_green")
 
     def init_planner(self,model:str="gpt-4o-mini",language:str=None) -> None:
@@ -161,7 +161,7 @@ class Agent(Member):
         # If there are no tool calls, return the message [Most Common Case]
         if not response_message.tool_calls:
             if keep_memory and self.memory:
-                self.memory.add_working_memory(f"user's query: {original_query} \n\n you's response: {response_message.content}")
+                self.memory.add_working_memory(f"user's query: {original_query} \n\nyour response: {response_message.content}")
             res = [Message(sender=self.name, action="talk", result=response_message.content)]
             return res
         
