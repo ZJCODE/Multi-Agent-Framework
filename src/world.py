@@ -10,7 +10,7 @@
 # two or more agents all can be defined as a group
 # in group , agents can interact with each other including chat and cooperate to tackle some tasks
 
-from .group import Group
+from src.group import Group
 class World:
     def __init__(self):
         pass

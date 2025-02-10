@@ -10,8 +10,9 @@
 from openai import OpenAI
 from pydantic import BaseModel
 from typing import List,Literal
-from .protocol import Env
-from .utilities.logger import Logger
+
+from src.protocol import Env
+from src.utilities.logger import Logger
 
 class GroupPlanner:
     def __init__(self, env: Env,model_client: OpenAI,verbose: bool = False):

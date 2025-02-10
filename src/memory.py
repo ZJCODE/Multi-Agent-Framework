@@ -130,11 +130,11 @@ class Memory:
                 self._logger.log("info",f"Adding extracted memory to the long term memory vector database.")
                 ids = [str(uuid.uuid4()) for _ in range(len(long_term_memory.memorys))]
                 documents = [memory.content for memory in long_term_memory.memorys]
-                metadatas = [{"category": memory.category if hasattr(memory, "category") else "other",
-                              "timestamp": memory.timestamp if hasattr(memory, "timestamp") and memory.timestamp else "",
-                              "retrieval_cue": memory.retrieval_cue if hasattr(memory, "retrieval_cue") else "",
-                              "importance": memory.importance if hasattr(memory, "importance") else 1,
-                              "emotional_valence": memory.emotional_valence if hasattr(memory, "emotional_valence") else 0}
+                metadatas = [{"category": memory.category ,
+                              "timestamp": memory.timestamp or "",
+                              "retrieval_cue": memory.retrieval_cue,
+                              "importance": memory.importance,
+                              "emotional_valence": memory.emotional_valence}
                               for memory in long_term_memory.memorys]
                 self.db_collection.add(documents=documents, ids=ids, metadatas=metadatas)
 
@@ -233,5 +233,4 @@ if __name__ == "__main__":
     memory.add_working_memory("2025-01-22 19:00:00, John invited me to have dinner with him tomorrow night at 7 PM at The Cheesecake Factory.")
     memory.add_working_memory("2025-01-23 19:00:00, I went to the party at 7 PM, where I met my friend, Alice, and we danced all night.")
 
-    print('--- Memory ---')
-    print(memory.get_memorys_str(query="what did John do?",enhanced_filter=True))
+    memory.get_memorys_str(query="what did John do?",enhanced_filter=True)

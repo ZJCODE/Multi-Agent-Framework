@@ -19,10 +19,10 @@ import datetime
 import json
 from dataclasses import asdict
 
-from .utilities.logger import Logger
-from .protocol import Member, Env, Message, GroupMessageProtocol
-from .group_planner import GroupPlanner
-from .agent import Agent
+from src.utilities.logger import Logger
+from src.protocol import Member, Env, Message, GroupMessageProtocol
+from src.group_planner import GroupPlanner
+from src.agent import Agent
 
 class Group:
     def __init__(

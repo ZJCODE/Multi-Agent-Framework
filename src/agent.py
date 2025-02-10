@@ -10,12 +10,14 @@ from typing import List,Union,Dict
 from openai import OpenAI,AsyncOpenAI
 import requests
 import json
-from .utilities.logger import Logger
-from .utilities.utils import function_to_schema
-from .protocol import Member,Message
-from .memory import Memory
-from .planner import Planner
 import websockets.sync.client
+
+from src.utilities.logger import Logger
+from src.utilities.utils import function_to_schema
+from src.protocol import Member,Message
+from src.memory import Memory
+from src.planner import Planner
+
 
 class Agent(Member):
     def __init__(
