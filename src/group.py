@@ -277,7 +277,7 @@ class Group:
         """
 
         end_of_talk_prompt = (
-            "\nThe system should consider factors such as whether the conversation's goal has been achieved, if the topic has been exhausted, or if the dialogue becomes repetitive. Include scenarios where time constraints, task prioritization, social cues, or external events prompt a natural conclusion. Address how emotional shifts or changes in relationships might lead to abrupt endings. Incorporate strategies like summarizing the discussion, suggesting follow-up actions, and using polite farewells to ensure smooth and realistic conversation endings.Put `[=END=]` at the end of the conversation to indicate that the conversation is over like this: `Goodbye, Alice. [=END=]`"
+            "\n\nEnd the conversation gracefully in this group when the goal is met, the topic is finished, or dialogue becomes repetitive. Summarize the discussion, suggest next steps, and say goodbye. Append '[=END=]' (e.g., 'Goodbye, Alice. [=END=]')."
         )
 
         self.group_messages.env.description += end_of_talk_prompt
@@ -649,9 +649,9 @@ class Group:
             f"### Other people's Messages\n"
             f"{others_messages}\n\n"
             f"### Note\n"
-            f"Previous messages follow the format of `sender:action\nmessage\n`. When you respond, only include the message content, excluding the code block, sender, and action."
+            f"Previous messages follow the format of `sender:action\nmessage\n`. When you respond, only include the message content, excluding the code block, sender, and action.\n"
             f"### Task\n"
-            f"Consider the Background Information and the previous messages. Now, it's your turn."
+            f"Consider the Background Information and the previous messages. Now, it's {send_to}'s turn to respond. Please provide a response."
         )
 
         if len(self.group_messages.context) > 0 and self.group_messages.context[-1].sender == "user":

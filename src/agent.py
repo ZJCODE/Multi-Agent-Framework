@@ -109,6 +109,11 @@ class Agent(Member):
     def add_memory(self,memory:str) -> None:
         if not self.memory:
             return
+        self.memory.manual_add_long_term_memory(memory)
+
+    def add_working_memory(self,memory:str) -> None:
+        if not self.memory:
+            return
         self.memory.add_working_memory(memory)
 
     def _call_openai_agent(self,query:str,

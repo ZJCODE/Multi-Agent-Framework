@@ -64,6 +64,9 @@ class Memory:
             removed_memory = self.working_memory.pop(0)
             self._extract_long_term_memory(removed_memory)  # Can be updated to run asynchronously later
 
+    def manual_add_long_term_memory(self, memory: str) -> None:
+        self._extract_long_term_memory(memory)
+
     def _create_long_term_memory_db(self) -> None:
         if self.db_path:
             if not os.path.exists(self.db_path):
@@ -226,11 +229,16 @@ if __name__ == "__main__":
     memory = Memory(working_memory_threshold=2, model_client=model_client, 
                     model="gpt-4o-mini", language="en", db_path="data",verbose=True)
     
-    memory.add_working_memory("The sky is blue.")
-    memory.add_working_memory("John and Alice are classmates.")
-    memory.add_working_memory("2025-01-21 15:00:00, I met John in the park, where we discussed our plans for summer vacation, and afterward, we headed to the ice cream shop.")
-    memory.add_working_memory("I attended the meeting at 10 AM, where we discussed the new project timeline and deliverables.")
-    memory.add_working_memory("2025-01-22 19:00:00, John invited me to have dinner with him tomorrow night at 7 PM at The Cheesecake Factory.")
-    memory.add_working_memory("2025-01-23 19:00:00, I went to the party at 7 PM, where I met my friend, Alice, and we danced all night.")
+    # memory.add_working_memory("The sky is blue.")
+    # memory.add_working_memory("John and Alice are classmates.")
+    # memory.add_working_memory("2025-01-21 15:00:00, I met John in the park, where we discussed our plans for summer vacation, and afterward, we headed to the ice cream shop.")
+    # memory.add_working_memory("I attended the meeting at 10 AM, where we discussed the new project timeline and deliverables.")
+    # memory.add_working_memory("2025-01-22 19:00:00, John invited me to have dinner with him tomorrow night at 7 PM at The Cheesecake Factory.")
+    # memory.add_working_memory("2025-01-23 19:00:00, I went to the party at 7 PM, where I met my friend, Alice, and we danced all night.")
 
-    memory.get_memorys_str(query="what did John do?",enhanced_filter=True)
+    # memory.get_memorys_str(query="what did John do?",enhanced_filter=True)
+
+    memory.manual_add_long_term_memory("On Sunday morning at 7:00, the family gathered in the living room. Alice greeted everyone and asked for help with breakfast. I agreed to set the table and asked Jerry to join me. Jerry paused the TV and helped me with the plates and cutlery. I appreciated his help and suggested he assist Alice in the kitchen afterward. Jerry happily agreed and invited Spike to join him while he helped. Spike barked excitedly. I then noticed Spike was eager to go outside. I asked Jerry to take Spike for a walk while I finished reading the newspaper. Jerry agreed and promised to be careful. I told him to enjoy the walk with Spike, and he thanked me.")
+
+
+    print(memory.db_collection.peek(10))
