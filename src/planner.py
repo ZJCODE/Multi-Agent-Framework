@@ -213,7 +213,7 @@ if __name__ == "__main__":
 
     extra_info = "You received a call from John and he what to reschedule the meeting to 4 PM."
 
-    planner.update_plan(env_info=env_info,personal_info=personal_info,memory=memory,current_hour=current_hour,extra_info=extra_info)
+    planner.update_day_plan(env_info=env_info,personal_info=personal_info,memory=memory,current_hour=current_hour,extra_info=extra_info)
 
     for plan in planner.get_daily_plan():
         print(f"{plan.start_hour} - {plan.end_hour} : {plan.plan}")
@@ -222,7 +222,7 @@ if __name__ == "__main__":
 
     extra_info = "You suddenly want to eat some ice cream."
 
-    planner.update_plan(env_info=env_info,personal_info=personal_info,memory=memory,current_hour=current_hour,extra_info=extra_info)
+    planner.update_day_plan(env_info=env_info,personal_info=personal_info,memory=memory,current_hour=current_hour,extra_info=extra_info)
 
     for plan in planner.get_daily_plan():
         print(f"{plan.start_hour} - {plan.end_hour} : {plan.plan}")
@@ -230,8 +230,8 @@ if __name__ == "__main__":
 
     print("====================================================")
 
-    current_hour_plan = planner.plan_hour(env_info=env_info,personal_info=personal_info,memory=memory,current_hour=14)
+    planner.plan_hour(env_info=env_info,personal_info=personal_info,memory=memory,current_hour=14)
 
-    for plan in current_hour_plan:
+    for plan in planner.one_hour_plan:
         print(f"{plan.start_minute} - {plan.end_minute} : {plan.plan}")
 
