@@ -139,7 +139,7 @@ class Agent(Member):
 
         original_query = query
 
-        if use_memory and self.memory and (memorys_str := self.memory.get_memorys_str(original_query)):
+        if use_memory and self.memory and (memorys_str := self.memory.get_memorys_str(query = original_query,enhanced_filter=True)):
             query =  f"### Your Recent Memory:\n```{memorys_str}```\n\n" + query
 
         if use_planner and self.planner and (plan_str := self.planner.get_day_plan_str()):
@@ -161,7 +161,10 @@ class Agent(Member):
         # If there are no tool calls, return the message [Most Common Case]
         if not response_message.tool_calls:
             if keep_memory and self.memory:
-                self.memory.add_working_memory(f"user's query: {original_query} \n\nyour response: {response_message.content}")
+                self.memory.add_working_memory(json.dumps({
+                "query": original_query,
+                "response": response_message.content
+            }))
             res = [Message(sender=self.name, action="talk", result=response_message.content)]
             return res
         
@@ -191,7 +194,10 @@ class Agent(Member):
         
         response_message = response.choices[0].message
         if keep_memory and self.memory:
-            self.memory.add_working_memory(f"user's query: {original_query} \n\n you's response: {response_message.content}")
+            self.memory.add_working_memory(json.dumps({
+                "query": original_query,
+                "response": response_message.content
+            }))
         res.append(Message(sender=self.name, action="talk", result=response_message.content))
 
         return res

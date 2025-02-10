@@ -203,7 +203,12 @@ class Memory:
                 tool_choice=None,
                 temperature=0.0,
             )
-            return completion.choices[0].message.content
+
+            filtered_memories = completion.choices[0].message.content
+
+            self._logger.log("info",f"Filtered memories:\n{filtered_memories}",color="bold_blue")
+
+            return filtered_memories
 
         return memories_res
     
