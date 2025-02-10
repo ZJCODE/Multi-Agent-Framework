@@ -22,7 +22,7 @@ class MemoryItem(BaseModel):
     content: str
     timestamp: Optional[str] = None
     category: Literal["episodic", "semantic","procedural","social"] = Field(...,description="Category of the memory item")
-    retrieval_cue: Optional[str] = Field(None, description="Retrieval cue for the memory item")
+    retrieval_cue: str = Field(..., description="Retrieval cue for the memory item")
     importance: Literal[1,2,3,4,5] = Field(..., description="Importance of the memory item")
     emotional_valence: Literal[-2,-1,0,1,2] = Field(..., description="Emotional valence of the memory item")
 class LongTermMemory(BaseModel):
@@ -125,16 +125,16 @@ class Memory:
         self._logger.log("info",f"Extract Long Term Memory Completed.")
 
         if long_term_memory.memorys:
-            self.long_term_memory.memorys.extend(long_term_memory.memorys)
+            # self.long_term_memory.memorys.extend(long_term_memory.memorys)
             if self.db_collection:
                 self._logger.log("info",f"Adding extracted memory to the long term memory vector database.")
                 ids = [str(uuid.uuid4()) for _ in range(len(long_term_memory.memorys))]
                 documents = [memory.content for memory in long_term_memory.memorys]
-                metadatas = [{"category": memory.category, 
-                              "timestamp": memory.timestamp,
-                              "retrieval_cue": memory.retrieval_cue,
-                              "importance": memory.importance, 
-                              "emotional_valence": memory.emotional_valence} 
+                metadatas = [{"category": memory.category if hasattr(memory, "category") else "other",
+                              "timestamp": memory.timestamp if hasattr(memory, "timestamp") and memory.timestamp else "",
+                              "retrieval_cue": memory.retrieval_cue if hasattr(memory, "retrieval_cue") else "",
+                              "importance": memory.importance if hasattr(memory, "importance") else 1,
+                              "emotional_valence": memory.emotional_valence if hasattr(memory, "emotional_valence") else 0}
                               for memory in long_term_memory.memorys]
                 self.db_collection.add(documents=documents, ids=ids, metadatas=metadatas)
 
@@ -166,7 +166,7 @@ class Memory:
             ("Working Memory", working_memory),
             ("Semantic Matching", semantic_matching),
         ]
-        
+
         memory_fragments = []
         for title, memories in sections:
             if memories:
@@ -185,7 +185,6 @@ class Memory:
                 "Select the most relevant memories based on the current context: \n"
                 f"```{query}```\n"
                 "Most relevant memories are those that are directly related to the context provided and can be used to answer the query effectively."
-                "Include time information if available."
                 "Just return the memories do not add any additional information and without code blocks."
                 "If There is no relevant memory, please type 'No relevant memory'."
             )
@@ -222,13 +221,12 @@ if __name__ == "__main__":
     memory = Memory(working_memory_threshold=2, model_client=model_client, 
                     model="gpt-4o-mini", language="en", db_path="data",verbose=True)
     
-    print(memory.get_memorys_str(query="who is John",enhanced_filter=True))
+    memory.add_working_memory("The sky is blue.")
+    memory.add_working_memory("John and Alice are classmates.")
     memory.add_working_memory("2025-01-21 15:00:00, I met John in the park, where we discussed our plans for summer vacation, and afterward, we headed to the ice cream shop.")
     memory.add_working_memory("I attended the meeting at 10 AM, where we discussed the new project timeline and deliverables.")
     memory.add_working_memory("2025-01-22 19:00:00, John invited me to have dinner with him tomorrow night at 7 PM at The Cheesecake Factory.")
     memory.add_working_memory("2025-01-23 19:00:00, I went to the party at 7 PM, where I met my friend, Alice, and we danced all night.")
-    
-    memory.add_working_memory("The sky is blue.")
 
-    print('--------------------------------\n')
-    print(memory.get_memorys_str(query="who is John",enhanced_filter=True))
+    print('--- Memory ---')
+    print(memory.get_memorys_str(query="what did John do?",enhanced_filter=True))
