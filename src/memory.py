@@ -206,7 +206,7 @@ class Memory:
 
             filtered_memories = completion.choices[0].message.content
 
-            self._logger.log("info",f"Filtered memories:\n{filtered_memories}",color="bold_blue")
+            self._logger.log("info",f"Filtered memories:\n\n{filtered_memories}",color="bold_blue")
 
             return filtered_memories
 
