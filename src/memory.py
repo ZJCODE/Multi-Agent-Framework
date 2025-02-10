@@ -141,14 +141,13 @@ class Memory:
     def retrieve_working_memory(self) -> List[str]:
         return self.working_memory
 
-    def retrieve_long_term_memory(self, max_results: int = 5) -> Tuple[List[str], List[str]]:
-        return self.long_term_memory.memorys[-max_results:] if self.long_term_memory.memorys else []
-
-    def retrieve_long_term_memory_by_query(self, query: str, max_results: int = 5) -> Any:
+    def retrieve_long_term_memory(self, query: str, max_results: int = 5) -> Any:
         if self.db_collection is None or not query:
             return []
         # Retrieve available document count from the collection.
         available_count = self.db_collection.count() if hasattr(self.db_collection, "count") else max_results
+        if available_count == 0:
+            return []
         n_results = min(max_results, available_count)
         res = self.db_collection.query(query_texts=[query], n_results=n_results)
         if res is None:
@@ -161,15 +160,13 @@ class Memory:
 
     def get_memorys_str(self, query: str = None, max_results: int = 3, enhanced_filter: bool = False) -> str:
         working_memory = self.retrieve_working_memory()
-        long_term_memory = self.retrieve_long_term_memory(max_results)
-        semantic_matching = self.retrieve_long_term_memory_by_query(query, max_results)
+        semantic_matching = self.retrieve_long_term_memory(query, max_results)
 
         sections = [
             ("Working Memory", working_memory),
-            ("Long Term Memory", long_term_memory),
             ("Semantic Matching", semantic_matching),
         ]
-
+        
         memory_fragments = []
         for title, memories in sections:
             if memories:
@@ -190,6 +187,7 @@ class Memory:
                 "Most relevant memories are those that are directly related to the context provided and can be used to answer the query effectively."
                 "Include time information if available."
                 "Just return the memories do not add any additional information and without code blocks."
+                "If There is no relevant memory, please type 'No relevant memory'."
             )
             if self.language:
                 prompt += f"\n\n### Response in Language: {self.language}"
@@ -223,6 +221,8 @@ if __name__ == "__main__":
     
     memory = Memory(working_memory_threshold=2, model_client=model_client, 
                     model="gpt-4o-mini", language="en", db_path="data",verbose=True)
+    
+    print(memory.get_memorys_str(query="who is John",enhanced_filter=True))
     memory.add_working_memory("2025-01-21 15:00:00, I met John in the park, where we discussed our plans for summer vacation, and afterward, we headed to the ice cream shop.")
     memory.add_working_memory("I attended the meeting at 10 AM, where we discussed the new project timeline and deliverables.")
     memory.add_working_memory("2025-01-22 19:00:00, John invited me to have dinner with him tomorrow night at 7 PM at The Cheesecake Factory.")
