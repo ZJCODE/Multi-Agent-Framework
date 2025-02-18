@@ -30,6 +30,7 @@ class Agent(Member):
             temperature: float = None, # Temperature for openai model
             tools: List["function"] = None, # List of Python Functions for openai model
             dify_access_token: str = None,
+            iagent_url: str = None,
             websocket_url: str = None,
             verbose: bool = False
             ):
@@ -45,6 +46,7 @@ class Agent(Member):
             temperature (float, optional): The temperature for the agent. Defaults to 0.5.
             tools (List["function"], optional): The tools for the agent. Defaults to None.
             dify_access_token (str, optional): The Dify access token for the agent. Defaults to None.
+            iagent_url (str, optional): The iAgent URL for the agent. Defaults to None.
             websocket_url (str, optional): The websocket URL for the agent. Defaults to None.
             verbose (bool, optional): The verbosity of the agent. Defaults to False.
         
@@ -56,6 +58,7 @@ class Agent(Member):
         self.temperature = temperature
         self.tools = tools
         self.dify_access_token = dify_access_token
+        self.iagent_url = iagent_url
         self.websocket_url = websocket_url
         self.verbose = verbose
         self._connect_to_websocket()
@@ -70,12 +73,17 @@ class Agent(Member):
         return f"{self.name} is a {self.role}."
     
     def do(self, 
-           message: str,model:str="gpt-4o-mini",
+           message: str,
+           sender: str = None,
+           model:str="gpt-4o-mini",
            use_tools:bool=True,use_memory:bool=True,use_planner:bool=True,
            keep_memory:bool=True) -> List[Message]:
         if self.dify_access_token:
             self._logger.log(level="info", message=f"Calling Dify agent [{self.name}]",color="bold_green")
             response = self._call_dify_http_agent(self.dify_access_token, message)
+        elif self.iagent_url:
+            self._logger.log(level="info", message=f"Calling iAgent agent [{self.name}]",color="bold_green")
+            response = self._call_iagent_http_agent(message,sender)
         elif self.websocket_url:
             self._logger.log(level="info", message=f"Calling Websocket agent [{self.name}]",color="bold_green")
             response = self._call_websocket_agent(message)
@@ -209,38 +217,207 @@ class Agent(Member):
 
         return res
 
-    def _call_dify_http_agent(self,token:str,query:str) -> List[Message]:
+    def _call_dify_http_agent(self, token: str, query: str) -> List[Message]:
         """
-        This function calls the agent function to get the response.
+        Calls the Dify.ai API to get a response.
 
         Args:
-            token (str): The agent's access token.
+            token (str): The agent's access token for Dify.ai API.
             query (str): The query to send to the agent.
 
         Returns:
-            Message: The response from the agent.
+            List[Message]: List containing a Message object with the agent's response.
+
+        Raises:
+            ValueError: If token is empty or invalid
+            requests.exceptions.RequestException: If HTTP request fails
         """
+        if not token or not isinstance(token, str):
+            raise ValueError("Invalid Dify access token")
+
         url = 'https://api.dify.ai/v1/chat-messages'
         headers = {
-            'Authorization': 'Bearer {}'.format(token),
-            'Content-Type': 'application/json'
+            'Authorization': f'Bearer {token}',
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
         }
 
         data = {
             "inputs": {},
-            "query": query,
+            "query": query.strip(),  # Clean the query
             "response_mode": "blocking",
             "conversation_id": "",
             "user": self.name,
             "files": []
         }
 
-        response = requests.post(url, headers=headers, json=data)
+        try:
+            self._logger.log(
+                level="info", 
+                message=f"Sending request to Dify API", 
+                color="bold_blue"
+            )
+            
+            response = requests.post(
+                url=url, 
+                headers=headers, 
+                json=data,
+                timeout=30  # Add timeout
+            )
+            
+            response.raise_for_status()  # Raise exception for bad status codes
+            response_data = response.json()
 
-        res = [Message(sender=self.name, action="talk", result=response.json()['answer'])]
+            if 'answer' not in response_data:
+                self._logger.log(
+                    level="error",
+                    message="Unexpected response format from Dify API",
+                    color="bold_red"
+                )
+                return []
 
-        return res  
-    
+            self._logger.log(
+                level="info",
+                message="Successfully received response from Dify API",
+                color="bold_green"
+            )
+
+            return [Message(
+                sender=self.name,
+                action="talk",
+                result=response_data['answer']
+            )]
+
+        except requests.exceptions.Timeout:
+            self._logger.log(
+                level="error",
+                message="Request timed out while connecting to Dify API",
+                color="bold_red"
+            )
+            return []
+
+        except requests.exceptions.RequestException as e:
+            self._logger.log(
+                level="error",
+                message=f"Failed to communicate with Dify API: {str(e)}",
+                color="bold_red"
+            )
+            return []
+
+        except json.JSONDecodeError:
+            self._logger.log(
+                level="error",
+                message="Failed to parse Dify API response as JSON",
+                color="bold_red"
+            )
+            return []
+
+    def _call_iagent_http_agent(self, query: str, sender: str = None) -> List[Message]:
+        """
+        Calls the iAgent HTTP endpoint to get a response.
+
+        Args:
+            query (str): The query to send to the agent.
+            sender (str, optional): The sender of the message. Defaults to None.
+
+        Returns:
+            List[Message]: List of Message objects containing the agent's responses.
+        
+        Raises:
+            ValueError: If iagent_url is not set
+            requests.exceptions.RequestException: If HTTP request fails
+        """
+        if not self.iagent_url:
+            raise ValueError("iAgent URL is not configured")
+
+        if not sender:
+            sender = "user"  # Default sender name
+
+        headers = {
+            'User-Agent': 'Multi-Agent-System/1.0',
+            'Content-Type': 'application/json',
+            'Accept': '*/*'
+        }
+
+        payload = {
+            'sender_nickname': sender,
+            'content': query.strip()  # Remove leading/trailing whitespace
+        }
+
+        try:
+            self._logger.log(
+                level="info", 
+                message=f"Sending request to iAgent: {self.iagent_url}", 
+                color="bold_blue"
+            )
+            
+            response = requests.post(
+                url=self.iagent_url, 
+                headers=headers, 
+                json=payload,
+                timeout=30  # Add timeout
+            )
+            
+            response.raise_for_status()
+            response_data = response.json()
+
+            if not isinstance(response_data, list):
+                self._logger.log(
+                    level="warning",
+                    message="Unexpected response format - expected list",
+                    color="yellow"
+                )
+                return []
+
+            messages = []
+            for item in response_data:
+                # Validate response item structure
+                if not isinstance(item, dict):
+                    continue
+
+                content_type = item.get('content_type')
+                content = item.get('content')
+                nickname = item.get('sender_nickname', self.name)
+
+                if content_type == '1' and content:  # TEXT type
+                    messages.append(Message(
+                        sender=nickname,
+                        action="talk",
+                        result=content
+                    ))
+                else:
+                    self._logger.log(
+                        level="debug",
+                        message=f"Skipping unsupported content type: {content_type}",
+                        color="yellow"
+                    )
+
+            return messages
+
+        except requests.exceptions.Timeout:
+            self._logger.log(
+                level="error",
+                message="Request timed out while connecting to iAgent",
+                color="bold_red"
+            )
+            return []
+
+        except requests.exceptions.RequestException as e:
+            self._logger.log(
+                level="error",
+                message=f"Failed to communicate with iAgent: {str(e)}",
+                color="bold_red"
+            )
+            return []
+
+        except json.JSONDecodeError:
+            self._logger.log(
+                level="error",
+                message="Failed to parse iAgent response as JSON",
+                color="bold_red"
+            )
+            return []
+
     def _call_websocket_agent(self, query: str) -> List[Message]:
         """
         This function calls the agent function to get the response.
