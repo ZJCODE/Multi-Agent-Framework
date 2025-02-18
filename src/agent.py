@@ -336,7 +336,7 @@ class Agent(Member):
         headers = {
             'User-Agent': 'Multi-Agent-System/1.0',
             'Content-Type': 'application/json',
-            'Accept': '*/*'
+            'Accept': 'application/json'
         }
 
         payload = {
